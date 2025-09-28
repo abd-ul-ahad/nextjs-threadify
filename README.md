@@ -4,14 +4,14 @@ A lightweight, high-performance worker pool library for browsers that enables yo
 
 ## Features
 
-- 🚀 **Zero Configuration** - Works out of the box with sensible defaults
-- 🧵 **Web Workers Pool** - Efficiently manages multiple worker threads
-- 📦 **Transferable Objects** - Automatic zero-copy ArrayBuffer transfers
-- 🎯 **Smart Scheduling** - Auto-detects heavy vs light tasks
-- 🚫 **Graceful Fallback** - Runs inline when workers aren't available
-- 📊 **Performance Monitoring** - Built-in diagnostics and statistics
-- 🛑 **Cancellation Support** - Full AbortSignal integration
-- ⚡ **TypeScript First** - Complete type safety and IntelliSense
+-  **Zero Configuration** - Works out of the box with sensible defaults
+-  **Web Workers Pool** - Efficiently manages multiple worker threads
+-  **Transferable Objects** - Automatic zero-copy ArrayBuffer transfers
+-  **Smart Scheduling** - Auto-detects heavy vs light tasks
+-  **Graceful Fallback** - Runs inline when workers aren't available
+-  **Performance Monitoring** - Built-in diagnostics and statistics
+-  **Cancellation Support** - Full AbortSignal integration
+-  **TypeScript First** - Complete type safety and IntelliSense
 
 ## Installation
 
