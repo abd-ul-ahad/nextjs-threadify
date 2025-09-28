@@ -1,4 +1,4 @@
-# next-threadify
+# nextjs-threadify
 
 A lightweight, high-performance worker pool library for browsers that enables you to run CPU-intensive tasks on background threads with zero configuration. Perfect for React/Next.js applications that need to perform heavy computations without blocking the UI.
 
