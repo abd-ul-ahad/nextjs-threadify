@@ -251,6 +251,9 @@ function makeWorkerBlobUrl() {
   return URL.createObjectURL(blob);
 }
 
+// -------------------------------------------------------------------------
+// Types used by the pool/runtime
+// -------------------------------------------------------------------------
 type Task = {
   id: number;
   code: string;
@@ -269,6 +272,10 @@ type WorkerSlot = {
   busy: boolean;
 };
 
+/**
+ * Runtime statistics returned by `getThreadedStats()`.
+ * `avgLatencyMs` is rounded to the nearest millisecond.
+ */
 export type PoolStats = {
   name: string;
   poolSize: number;
@@ -281,6 +288,9 @@ export type PoolStats = {
   avgLatencyMs: number;
 };
 
+// -------------------------------------------------------------------------
+// WorkerPool implementation
+// -------------------------------------------------------------------------
 class WorkerPool {
   private opts: Required<ThreadedOptions>;
   private url: string | null = null;
@@ -296,6 +306,8 @@ class WorkerPool {
   private destroyed = false;
 
   constructor(opts: ThreadedOptions = {}) {
+    // Choose sensible defaults. If hardwareConcurrency is missing (e.g., in
+    // some test environments), fall back to 4 cores.
     const cores = (isBrowser && (navigator as any)?.hardwareConcurrency) || 4;
     const defaultPool = Math.max(1, Math.min(cores - 1, 4));
     this.opts = {
@@ -317,7 +329,8 @@ class WorkerPool {
         const slot: WorkerSlot = { id: i, w, busy: false };
         w.onmessage = (e: MessageEvent) => this.handleWorkerMessage(slot, e);
         w.onerror = (e: any) => {
-          // keep going but count as failure
+          // Keep the pool running even if a worker throws; count failures
+          // elsewhere (we do not terminate the whole pool on a single error).
           // console.warn("[cthread] worker error:", e);
         };
         this.workers.push(slot);
@@ -326,6 +339,10 @@ class WorkerPool {
     }
   }
 
+  /**
+   * Warmup: post a tiny job to each worker to prime the runtime/JIT.
+   * This reduces the latency of the first "real" task.
+   */
   private warmup() {
     // tiny tasks to JIT the worker
     const tiny = () => 1 + 1;
@@ -343,6 +360,10 @@ class WorkerPool {
     }
   }
 
+  /**
+   * Terminate workers, revoke blob URL and cleanup internal state.
+   * Safe to call multiple times.
+   */
   destroy() {
     if (this.destroyed) return;
     for (const slot of this.workers) {
@@ -359,6 +380,9 @@ class WorkerPool {
     this.destroyed = true;
   }
 
+  /**
+   * Produce a snapshot of pool statistics for diagnostics.
+   */
   getStats(): PoolStats {
     const busy = this.workers.filter((w) => w.busy).length;
     const avg = this.latencies.length
@@ -377,13 +401,18 @@ class WorkerPool {
     };
   }
 
+  /**
+   * Internal worker message handler. Matches responses to pending tasks and
+   * resolves/rejects the stored promises.
+   */
   private handleWorkerMessage(slot: WorkerSlot, e: MessageEvent) {
     slot.busy = false;
     const msg = e.data || {};
     const { id, ok, result, error } = msg;
     const rec = this.taskMap.get(id);
     if (!rec) {
-      // maybe timed-out/canceled
+      // Possibly the task timed out or was cancelled; just pump to schedule
+      // next queued tasks.
       this.pump();
       return;
     }
@@ -402,11 +431,17 @@ class WorkerPool {
     this.pump();
   }
 
+  /**
+   * Return the first free worker slot or null when none available.
+   */
   private pickFreeWorker(): WorkerSlot | null {
     for (const slot of this.workers) if (!slot.busy) return slot;
     return null;
   }
 
+  /**
+   * Insert a task into the queue with priority ordering (higher first).
+   */
   private schedule(task: Task) {
     // Priority: higher first
     let i = this.queue.length - 1;
@@ -415,6 +450,10 @@ class WorkerPool {
     this.pump();
   }
 
+  /**
+   * Attempt to assign queued tasks to free workers. Called after state
+   * changes (task completion, worker freed, scheduling new task, etc.).
+   */
   private pump() {
     if (!hasWorker) return;
     while (true) {
@@ -468,6 +507,11 @@ class WorkerPool {
     }
   }
 
+  /**
+   * Main entry point for running a task. Honor strategy/inline heuristics,
+   * saturation policy, and cancellation. Returns a Promise that resolves with
+   * the function result or rejects with an error-like object.
+   */
   run(code: string, args: any[], options: RunOptions = {}) {
     const id = nextTaskId();
 
@@ -548,6 +592,12 @@ class WorkerPool {
     });
   }
 
+  /**
+   * Execute the provided function source inline on the main thread. This
+   * constructs a new Function wrapper and invokes it with the `args` array.
+   * Note: this is synchronous from the perspective of the invoked function
+   * but we return a Promise so the API is consistent.
+   */
   private async runInline(code: string, args: any[]) {
     // Execute in main thread
     const fn = new Function(
@@ -558,10 +608,17 @@ class WorkerPool {
   }
 }
 
-// Singleton pool for app
+// -------------------------------------------------------------------------
+// Module-level singleton pool management
+// -------------------------------------------------------------------------
 let __pool: WorkerPool | null = null;
 let __poolOpts: ThreadedOptions | null = null;
 
+/**
+ * Configure the global threaded pool. If a pool already exists it will be
+ * destroyed and re-created with the new options on the next `threaded`
+ * invocation (or immediately if `getPool()` is called).
+ */
 export function configureThreaded(opts: ThreadedOptions = {}) {
   __poolOpts = { ...(__poolOpts || {}), ...opts };
   if (__pool && isBrowser) {
@@ -572,7 +629,9 @@ export function configureThreaded(opts: ThreadedOptions = {}) {
 
 function getPool(): WorkerPool {
   if (!isBrowser || !hasWorker) {
-    // no worker env: create a fake pool that inlines everything
+    // Environment without workers: return a "fake" pool that runs tasks
+    // inline. We still construct a WorkerPool instance but we force it into
+    // inline mode via the provided opts.
     return new WorkerPool({
       ...(__poolOpts || {}),
       poolSize: 0,
@@ -586,10 +645,12 @@ function getPool(): WorkerPool {
   return __pool;
 }
 
+/** Get a diagnostic snapshot of the current global pool. */
 export function getThreadedStats(): PoolStats {
   return getPool().getStats();
 }
 
+/** Destroy the global pool and release resources. */
 export function destroyThreaded() {
   if (__pool) {
     __pool.destroy();
@@ -597,7 +658,16 @@ export function destroyThreaded() {
   }
 }
 
-// Main API: threaded wrapper
+// -------------------------------------------------------------------------
+// Public API: threaded wrappers and helpers
+// -------------------------------------------------------------------------
+/**
+ * Wrap a pure function so it runs on the threaded pool. The provided function
+ * must be self-contained (no external closures) because its source is
+ * serialized and compiled inside the worker.
+ *
+ * Returns a function that when called will return a Promise of the result.
+ */
 export function threaded<T extends (...args: any[]) => any>(
   fn: T,
   defaults: RunOptions = {}
@@ -609,8 +679,10 @@ export function threaded<T extends (...args: any[]) => any>(
   };
 }
 
-// Decorator: method or function decorator
-// TS 5+ "standard decorators" support
+/**
+ * Decorator form to wrap methods or functions to run on the pool.
+ * Usage: `@Threaded()` above a method or `const f = Threaded()(function...)`.
+ */
 export function Threaded(defaults: RunOptions = {}): any {
   // Method decorator
   return (target: any, context: any) => {
@@ -639,7 +711,17 @@ export function Threaded(defaults: RunOptions = {}): any {
   };
 }
 
-// Helpers: parallel map with chunking across pool
+// -------------------------------------------------------------------------
+// parallelMap helper
+// -------------------------------------------------------------------------
+/**
+ * Map over `items` in parallel by chunking them and running each chunk on a
+ * worker. The `mapper` must be self-contained (no external closures). This
+ * reduces per-item dispatch overhead by processing chunks inside workers.
+ *
+ * Options: pass `chunkSize` to control how many items per chunk; otherwise
+ * it will attempt to balance across pool size.
+ */
 export async function parallelMap<T, R>(
   items: T[],
   mapper: (item: T, idx: number, all: T[]) => R | Promise<R>,
@@ -660,6 +742,9 @@ export async function parallelMap<T, R>(
   const out: R[] = new Array(items.length);
   await Promise.all(
     chunks.map(({ start, end }) => {
+      // Prepare pairs of [value, absoluteIndex] so mapper can know original
+      // index. We then run one function per chunk inside the worker which
+      // iterates the slice and calls the mapper for each element locally.
       const slice = items
         .slice(start, end)
         .map((v, i) => [v, start + i] as const);
