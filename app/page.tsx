@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { threaded, configureThreaded } from "@/library/cthread";
+import { threaded, configureThreaded } from "@/library/next-threadify";
 
 // configure the worker pool (adjust poolSize as you like)
 configureThreaded({ poolSize: 3 });

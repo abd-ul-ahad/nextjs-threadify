@@ -1,0 +1,54 @@
+{
+  "name": "next-threadify",
+  "version": "1.0.1",
+  "description": "Threading/multitasking utilities for Next.js",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup index.ts --format cjs,esm --dts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abd-ul-ahad/next-threadify.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abd-ul-ahad/next-threadify/issues"
+  },
+  "homepage": "https://github.com/abd-ul-ahad/next-threadify#readme",
+  "keywords": [
+    "nextjs",
+    "react",
+    "threads",
+    "multithreading",
+    "webworkers",
+    "nextjs-library",
+    "nextjs-plugin",
+    "async",
+    "concurrency",
+    "parallel",
+    "task-runner",
+    "scheduler",
+    "performance",
+    "nextjs-tools",
+    "nextjs-utils",
+    "javascript",
+    "typescript",
+    "frontend",
+    "optimization",
+    "react-hooks",
+    "nextjs-hooks"
+  ],
+  "author": "Abdul Ahad",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "next": ">=13",
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0"
+  }
+}
