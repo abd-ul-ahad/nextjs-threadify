@@ -444,7 +444,7 @@ function Threadium({
   poolSize,
   minWorkTimeMs,
   warmup = true,
-  strategy = "auto",
+  strategy = "always",
   className
 }) {
   const [isClient, setIsClient] = (0, import_react.useState)(false);
@@ -456,9 +456,11 @@ function Threadium({
       poolSize,
       minWorkTimeMs,
       warmup,
-      strategy,
+      strategy: "always",
+      // Force worker-only execution
       preferTransferables: true,
       saturation: "enqueue"
+      // Queue tasks instead of running inline
     });
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate);
@@ -495,7 +497,9 @@ function useThreaded(fn, deps = []) {
   }, deps);
   return (...args) => {
     if (!threadedFnRef.current) {
-      return Promise.resolve(fn(...args));
+      throw new Error(
+        "[Threadium] Worker not initialized. Ensure the component is mounted and Web Workers are supported."
+      );
     }
     return threadedFnRef.current(...args);
   };

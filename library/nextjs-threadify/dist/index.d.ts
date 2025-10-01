@@ -16,9 +16,10 @@ interface ThreadedProps {
      */
     warmup?: boolean;
     /**
-     * Optional: Scheduling strategy - 'auto' | 'always' | 'inline' (default: 'auto')
+     * Optional: Scheduling strategy - only 'always' supported (default: 'always')
+     * All operations will run on worker threads with no fallback to main thread
      */
-    strategy?: "auto" | "always" | "inline";
+    strategy?: "always";
     /**
      * Optional: Custom CSS class names to style the container element
      */
@@ -26,8 +27,8 @@ interface ThreadedProps {
 }
 /**
  * <Threaded> component wrapper that runs its children in a multi-threaded
- * environment using Web Workers when available, with automatic SSR/hydration
- * safety and graceful fallback to main thread execution.
+ * environment using Web Workers. All operations are guaranteed to run on
+ * worker threads with no fallback to main thread execution.
  *
  * Features:
  * - SSR-safe: No errors during server-side rendering
@@ -35,27 +36,29 @@ interface ThreadedProps {
  * - Automatic worker pool management
  * - Smooth animations via requestAnimationFrame scheduling
  * - Zero-copy transfers for ArrayBuffers when possible
+ * - Worker-only execution: Never falls back to main thread
  *
  * Usage:
- * \`\`\`tsx
- * <Threaded poolSize={4} strategy="auto">
+ * ```tsx
+ * <Threadium poolSize={4}>
  *   <HeavyComponent />
- * </Threaded>
- * \`\`\`
+ * </Threadium>
+ * ```
  */
 declare function Threadium({ children, poolSize, minWorkTimeMs, warmup, strategy, className, }: ThreadedProps): react_jsx_runtime.JSX.Element;
 /**
  * Hook to access threaded execution within components.
  * Use this to offload heavy computations to worker threads.
+ * All operations are guaranteed to run on worker threads with no fallback.
  *
  * Example:
- * \`\`\`tsx
+ * ```tsx
  * const processData = useThreaded((data: number[]) => {
  *   return data.map(x => x * 2).reduce((a, b) => a + b, 0)
  * })
  *
  * const result = await processData([1, 2, 3, 4, 5])
- * \`\`\`
+ * ```
  */
 declare function useThreaded<T extends (...args: any[]) => any>(fn: T, deps?: any[]): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
 

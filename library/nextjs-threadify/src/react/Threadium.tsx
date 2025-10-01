@@ -18,9 +18,10 @@ interface ThreadedProps {
    */
   warmup?: boolean;
   /**
-   * Optional: Scheduling strategy - 'auto' | 'always' | 'inline' (default: 'auto')
+   * Optional: Scheduling strategy - only 'always' supported (default: 'always')
+   * All operations will run on worker threads with no fallback to main thread
    */
-  strategy?: "auto" | "always" | "inline";
+  strategy?: "always";
   /**
    * Optional: Custom CSS class names to style the container element
    */
@@ -29,8 +30,8 @@ interface ThreadedProps {
 
 /**
  * <Threaded> component wrapper that runs its children in a multi-threaded
- * environment using Web Workers when available, with automatic SSR/hydration
- * safety and graceful fallback to main thread execution.
+ * environment using Web Workers. All operations are guaranteed to run on
+ * worker threads with no fallback to main thread execution.
  *
  * Features:
  * - SSR-safe: No errors during server-side rendering
@@ -38,20 +39,21 @@ interface ThreadedProps {
  * - Automatic worker pool management
  * - Smooth animations via requestAnimationFrame scheduling
  * - Zero-copy transfers for ArrayBuffers when possible
+ * - Worker-only execution: Never falls back to main thread
  *
  * Usage:
- * \`\`\`tsx
- * <Threaded poolSize={4} strategy="auto">
+ * ```tsx
+ * <Threadium poolSize={4}>
  *   <HeavyComponent />
- * </Threaded>
- * \`\`\`
+ * </Threadium>
+ * ```
  */
 export function Threadium({
   children,
   poolSize,
   minWorkTimeMs,
   warmup = true,
-  strategy = "auto",
+  strategy = "always",
   className,
 }: ThreadedProps) {
   const [isClient, setIsClient] = useState(false);
@@ -62,14 +64,13 @@ export function Threadium({
   useEffect(() => {
     setIsClient(true);
 
-    // Configure the global worker pool with user options
     configureThreaded({
       poolSize,
       minWorkTimeMs,
       warmup,
-      strategy,
+      strategy: "always", // Force worker-only execution
       preferTransferables: true,
-      saturation: "enqueue",
+      saturation: "enqueue", // Queue tasks instead of running inline
     });
 
     // Smooth animation loop to ensure consistent frame timing
@@ -116,21 +117,22 @@ export function Threadium({
 /**
  * Hook to access threaded execution within components.
  * Use this to offload heavy computations to worker threads.
+ * All operations are guaranteed to run on worker threads with no fallback.
  *
  * Example:
- * \`\`\`tsx
+ * ```tsx
  * const processData = useThreaded((data: number[]) => {
  *   return data.map(x => x * 2).reduce((a, b) => a + b, 0)
  * })
  *
  * const result = await processData([1, 2, 3, 4, 5])
- * \`\`\`
+ * ```
  */
 export function useThreaded<T extends (...args: any[]) => any>(
   fn: T,
   deps: any[] = []
 ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
-  const threadedFnRef = useRef<ReturnType<typeof threaded<T>>>(null);
+  const threadedFnRef = useRef<ReturnType<typeof threaded<T>> | null>(null);
 
   useEffect(() => {
     threadedFnRef.current = threaded(fn);
@@ -138,8 +140,9 @@ export function useThreaded<T extends (...args: any[]) => any>(
 
   return (...args: Parameters<T>) => {
     if (!threadedFnRef.current) {
-      // Fallback to direct execution if not initialized
-      return Promise.resolve(fn(...args));
+      throw new Error(
+        "[Threadium] Worker not initialized. Ensure the component is mounted and Web Workers are supported."
+      );
     }
     return threadedFnRef.current(...args);
   };

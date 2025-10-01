@@ -3,8 +3,7 @@
 // cthread - lightweight browser worker pool + threaded helper
 // ---------------------------------------------------------
 // This module provides a small worker-pool implementation and a "threaded"
-// wrapper that allows users to run pure functions on worker threads (when
-// available) or inline on the main thread when workers are not present.
+// wrapper that allows users to run pure functions on worker threads.
 //
 // Features:
 // - WorkerPool with configurable pool size, queue saturation policy and timeouts
@@ -20,6 +19,7 @@
 // the worker. Closure variables will not be available in the worker.
 // - This implementation aims to be pragmatic and small; it is not intended to
 // replace a full-featured job queue or scheduler.
+// - ALL operations run on worker threads - no inline fallbacks
 
 // SSR/browser guards -------------------------------------------------------
 // Detect if we are running inside a browser with workers available.
@@ -28,8 +28,8 @@ const isBrowser =
 const hasWorker = isBrowser && typeof Worker !== "undefined";
 
 // Config and state
-type Strategy = "auto" | "always" | "inline"; // auto picks worker for heavy tasks, inline for tiny ones
-type SaturationPolicy = "reject" | "inline" | "enqueue"; // when queue is full
+type Strategy = "always"; // always use worker threads
+type SaturationPolicy = "reject" | "enqueue"; // when queue is full
 
 // Config and state --------------------------------------------------------
 // Public types describing configuration options consumed by the pool and
@@ -43,11 +43,9 @@ export type ThreadedOptions = {
   maxQueue?: number; // default: 256
   /** Whether to spin a tiny job on each worker to warmup JIT. */
   warmup?: boolean; // spin a tiny job on each worker to JIT-start
-  /** Scheduling strategy: auto chooses worker for heavier tasks, inline for tiny ones. */
-  strategy?: Strategy; // default: auto
-  /** Minimum estimated work time (ms) used when strategy=auto to decide inline vs worker. */
-  minWorkTimeMs?: number; // if strategy=auto and work estimated < threshold => inline (default 6ms)
-  /** Behavior when the queue is full: reject, inline, or enqueue. */
+  /** Scheduling strategy: always uses worker threads. */
+  strategy?: Strategy; // default: always
+  /** Behavior when the queue is full: reject or enqueue. */
   saturation?: SaturationPolicy; // default: enqueue
   /** Try to transfer ArrayBuffers instead of cloning (where possible). */
   preferTransferables?: boolean; // default: true (attempt to transfer ArrayBuffers)
@@ -69,8 +67,6 @@ export type RunOptions = {
   preferTransferables?: boolean;
   /** Override strategy for this run. */
   strategy?: Strategy;
-  /** Override min work time heuristic for this run. */
-  minWorkTimeMs?: number;
 };
 
 // -------------------------------------------------------------------------
@@ -306,6 +302,12 @@ class WorkerPool {
   private destroyed = false;
 
   constructor(opts: ThreadedOptions = {}) {
+    if (!hasWorker) {
+      throw new Error(
+        "[cthread] Web Workers are not available in this environment. This library requires worker support and will not fall back to inline execution."
+      );
+    }
+
     // Choose sensible defaults. If hardwareConcurrency is missing (e.g., in
     // some test environments), fall back to 4 cores.
     const cores = (isBrowser && (navigator as any)?.hardwareConcurrency) || 4;
@@ -314,29 +316,26 @@ class WorkerPool {
       poolSize: Math.max(1, opts.poolSize ?? defaultPool),
       maxQueue: opts.maxQueue ?? 256,
       warmup: opts.warmup ?? true,
-      strategy: opts.strategy ?? "auto",
-      minWorkTimeMs: opts.minWorkTimeMs ?? 6,
+      strategy: "always", // Always use workers
       saturation: opts.saturation ?? "enqueue",
       preferTransferables: opts.preferTransferables ?? true,
       name: opts.name ?? "cthread",
-      timeoutMs: opts.timeoutMs ?? 10000, // Updated default worker timeout
+      timeoutMs: opts.timeoutMs ?? 10000,
     };
 
-    if (hasWorker) {
-      this.url = makeWorkerBlobUrl();
-      for (let i = 0; i < this.opts.poolSize; i++) {
-        const w = new Worker(this.url);
-        const slot: WorkerSlot = { id: i, w, busy: false };
-        w.onmessage = (e: MessageEvent) => this.handleWorkerMessage(slot, e);
-        w.onerror = (e: any) => {
-          // Keep the pool running even if a worker throws; count failures
-          // elsewhere (we do not terminate the whole pool on a single error).
-          // console.warn("[cthread] worker error:", e);
-        };
-        this.workers.push(slot);
-      }
-      if (this.opts.warmup) this.warmup();
+    this.url = makeWorkerBlobUrl();
+    for (let i = 0; i < this.opts.poolSize; i++) {
+      const w = new Worker(this.url);
+      const slot: WorkerSlot = { id: i, w, busy: false };
+      w.onmessage = (e: MessageEvent) => this.handleWorkerMessage(slot, e);
+      w.onerror = (e: any) => {
+        // Keep the pool running even if a worker throws; count failures
+        // elsewhere (we do not terminate the whole pool on a single error).
+        console.error("[cthread] worker error:", e);
+      };
+      this.workers.push(slot);
     }
+    if (this.opts.warmup) this.warmup();
   }
 
   /**
@@ -455,7 +454,6 @@ class WorkerPool {
    * changes (task completion, worker freed, scheduling new task, etc.).
    */
   private pump() {
-    if (!hasWorker) return;
     while (true) {
       const slot = this.pickFreeWorker();
       if (!slot) break;
@@ -508,27 +506,11 @@ class WorkerPool {
   }
 
   /**
-   * Main entry point for running a task. Honor strategy/inline heuristics,
-   * saturation policy, and cancellation. Returns a Promise that resolves with
-   * the function result or rejects with an error-like object.
+   * Main entry point for running a task. All tasks are executed on worker threads.
+   * Returns a Promise that resolves with the function result or rejects with an error-like object.
    */
   run(code: string, args: any[], options: RunOptions = {}) {
     const id = nextTaskId();
-
-    // Inline strategy if needed
-    const strategy = options.strategy ?? this.opts.strategy;
-    const minWork = options.minWorkTimeMs ?? this.opts.minWorkTimeMs;
-
-    // Heuristic: if no workers or strategy=inline, just run inline
-    if (!hasWorker || strategy === "inline") {
-      return this.runInline(code, args);
-    }
-
-    // If auto and known to be tiny (user hinted by minWorkTimeMs), we conservatively inline
-    // Users can override by strategy="always"
-    if (strategy === "auto" && this.workers.length === 0) {
-      return this.runInline(code, args);
-    }
 
     // If queue is saturated
     const saturated = this.queue.length >= this.opts.maxQueue;
@@ -540,9 +522,8 @@ class WorkerPool {
             name: "SaturationError",
           })
         );
-      } else if (policy === "inline") {
-        return this.runInline(code, args);
-      } // else enqueue
+      }
+      // else enqueue (removed inline option)
     }
 
     const preferTransferables =
@@ -591,21 +572,6 @@ class WorkerPool {
       this.schedule(t);
     });
   }
-
-  /**
-   * Execute the provided function source inline on the main thread. This
-   * constructs a new Function wrapper and invokes it with the `args` array.
-   * Note: this is synchronous from the perspective of the invoked function
-   * but we return a Promise so the API is consistent.
-   */
-  private async runInline(code: string, args: any[]) {
-    // Execute in main thread
-    const fn = new Function(
-      "ARGS",
-      `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`
-    );
-    return fn(args);
-  }
 }
 
 // -------------------------------------------------------------------------
@@ -629,15 +595,9 @@ export function configureThreaded(opts: ThreadedOptions = {}) {
 
 function getPool(): WorkerPool {
   if (!isBrowser || !hasWorker) {
-    // Environment without workers: return a "fake" pool that runs tasks
-    // inline. We still construct a WorkerPool instance but we force it into
-    // inline mode via the provided opts.
-    return new WorkerPool({
-      ...(__poolOpts || {}),
-      poolSize: 0,
-      strategy: "inline",
-      warmup: false,
-    });
+    throw new Error(
+      "[cthread] Web Workers are not available in this environment. This library requires worker support and will not fall back to inline execution."
+    );
   }
   if (!__pool) {
     __pool = new WorkerPool(__poolOpts || {});
@@ -667,6 +627,7 @@ export function destroyThreaded() {
  * serialized and compiled inside the worker.
  *
  * Returns a function that when called will return a Promise of the result.
+ * All executions happen on worker threads - no inline fallback.
  */
 export function threaded<T extends (...args: any[]) => any>(
   fn: T,
@@ -682,6 +643,7 @@ export function threaded<T extends (...args: any[]) => any>(
 /**
  * Decorator form to wrap methods or functions to run on the pool.
  * Usage: `@Threaded()` above a method or `const f = Threaded()(function...)`.
+ * All executions happen on worker threads - no inline fallback.
  */
 export function Threaded(defaults: RunOptions = {}): any {
   // Method decorator
@@ -721,6 +683,7 @@ export function Threaded(defaults: RunOptions = {}): any {
  *
  * Options: pass `chunkSize` to control how many items per chunk; otherwise
  * it will attempt to balance across pool size.
+ * All executions happen on worker threads - no inline fallback.
  */
 export async function parallelMap<T, R>(
   items: T[],

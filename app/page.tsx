@@ -6,7 +6,7 @@ import { Threadium } from "@/library/nextjs-threadify/index";
 
 // Heavy computation component to demonstrate threading
 function HeavyAnimation() {
-  const [count, setCount] = useState<number>(0);
+  const [count, setCount] = useState<number>(555555555555555555555555550);
   const [result, setResult] = useState<number | null>(null);
   const [computing, setComputing] = useState(false);
 

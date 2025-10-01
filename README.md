@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <Threadium poolSize={4} strategy="auto" minWorkTimeMs={6} warmup>
+        <Threadium poolSize={4} minWorkTimeMs={6} warmup>
           {children}
         </Threadium>
       </body>
