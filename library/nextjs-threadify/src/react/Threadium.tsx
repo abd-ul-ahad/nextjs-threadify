@@ -21,6 +21,10 @@ interface ThreadedProps {
    * Optional: Scheduling strategy - 'auto' | 'always' | 'inline' (default: 'auto')
    */
   strategy?: "auto" | "always" | "inline";
+  /**
+   * Optional: Custom CSS class names to style the container element
+   */
+  className?: string;
 }
 
 /**
@@ -48,6 +52,7 @@ export function Threadium({
   minWorkTimeMs,
   warmup = true,
   strategy = "auto",
+  className,
 }: ThreadedProps) {
   const [isClient, setIsClient] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -83,7 +88,11 @@ export function Threadium({
 
   // During SSR or before hydration, render children normally
   if (!isClient) {
-    return <div ref={containerRef}>{children}</div>;
+    return (
+      <div className={className} ref={containerRef}>
+        {children}
+      </div>
+    );
   }
 
   // After hydration, wrap in a container that enables GPU acceleration
@@ -91,6 +100,7 @@ export function Threadium({
   return (
     <div
       ref={containerRef}
+      className={className}
       style={{
         willChange: "transform",
         transform: "translateZ(0)",

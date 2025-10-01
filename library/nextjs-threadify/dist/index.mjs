@@ -92,7 +92,10 @@ function makeWorkerBlobUrl() {
       try {
         let fn = fnCache.get(code);
         if (!fn) {
-          fn = new Function("ARGS", `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`);
+          fn = new Function(
+            "ARGS",
+            `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`
+          );
           fnCache.set(code, fn);
         }
         const result = await fn(args);
@@ -239,7 +242,9 @@ var WorkerPool = class {
       const task = this.queue.shift();
       if (!task) break;
       if (task.signal?.aborted) {
-        task.reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
+        task.reject(
+          Object.assign(new Error("Aborted"), { name: "AbortError" })
+        );
         continue;
       }
       slot.busy = true;
@@ -253,7 +258,9 @@ var WorkerPool = class {
         const rem = Math.max(0, task.timeoutAt - performance.now());
         setTimeout(() => {
           if (this.taskMap.has(id)) {
-            this.taskMap.get(id)?.reject(Object.assign(new Error("Timeout"), { name: "TimeoutError" }));
+            this.taskMap.get(id)?.reject(
+              Object.assign(new Error("Timeout"), { name: "TimeoutError" })
+            );
             this.taskMap.delete(id);
           }
         }, rem);
@@ -269,7 +276,10 @@ var WorkerPool = class {
     }
   }
   async runInline(code, args) {
-    const fn = new Function("ARGS", `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`);
+    const fn = new Function(
+      "ARGS",
+      `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`
+    );
     return fn(args);
   }
   run(code, args, options = {}) {
@@ -296,7 +306,9 @@ var WorkerPool = class {
     }
     const preferTransferables = options.preferTransferables ?? this.opts.preferTransferables;
     if (options.signal?.aborted) {
-      return Promise.reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
+      return Promise.reject(
+        Object.assign(new Error("Aborted"), { name: "AbortError" })
+      );
     }
     return new Promise((resolve, reject) => {
       const t = {
@@ -394,7 +406,14 @@ function Threaded(defaults = {}) {
 
 // src/react/Threadium.tsx
 import { jsx } from "react/jsx-runtime";
-function Threadium({ children, poolSize, minWorkTimeMs, warmup = true, strategy = "auto" }) {
+function Threadium({
+  children,
+  poolSize,
+  minWorkTimeMs,
+  warmup = true,
+  strategy = "auto",
+  className
+}) {
   const [isClient, setIsClient] = useState(false);
   const containerRef = useRef(null);
   const rafRef = useRef(null);
@@ -419,12 +438,13 @@ function Threadium({ children, poolSize, minWorkTimeMs, warmup = true, strategy 
     };
   }, [poolSize, minWorkTimeMs, warmup, strategy]);
   if (!isClient) {
-    return /* @__PURE__ */ jsx("div", { ref: containerRef, children });
+    return /* @__PURE__ */ jsx("div", { className, ref: containerRef, children });
   }
   return /* @__PURE__ */ jsx(
     "div",
     {
       ref: containerRef,
+      className,
       style: {
         willChange: "transform",
         transform: "translateZ(0)",
@@ -452,7 +472,10 @@ function useThreaded(fn, deps = []) {
 async function parallelMap(items, mapper, options = {}) {
   const pool = getPool();
   const code = mapper.toString();
-  const chunkSize = Math.max(1, options.chunkSize ?? Math.ceil(items.length / Math.max(1, pool.getStats().poolSize)));
+  const chunkSize = Math.max(
+    1,
+    options.chunkSize ?? Math.ceil(items.length / Math.max(1, pool.getStats().poolSize))
+  );
   const chunks = [];
   for (let i = 0; i < items.length; i += chunkSize)
     chunks.push({ start: i, end: Math.min(items.length, i + chunkSize) });

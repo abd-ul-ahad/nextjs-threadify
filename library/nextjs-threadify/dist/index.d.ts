@@ -19,6 +19,10 @@ interface ThreadedProps {
      * Optional: Scheduling strategy - 'auto' | 'always' | 'inline' (default: 'auto')
      */
     strategy?: "auto" | "always" | "inline";
+    /**
+     * Optional: Custom CSS class names to style the container element
+     */
+    className?: string;
 }
 /**
  * <Threaded> component wrapper that runs its children in a multi-threaded
@@ -39,7 +43,7 @@ interface ThreadedProps {
  * </Threaded>
  * \`\`\`
  */
-declare function Threadium({ children, poolSize, minWorkTimeMs, warmup, strategy }: ThreadedProps): react_jsx_runtime.JSX.Element;
+declare function Threadium({ children, poolSize, minWorkTimeMs, warmup, strategy, className, }: ThreadedProps): react_jsx_runtime.JSX.Element;
 /**
  * Hook to access threaded execution within components.
  * Use this to offload heavy computations to worker threads.
