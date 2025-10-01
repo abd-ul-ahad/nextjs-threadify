@@ -31,7 +31,7 @@ __export(index_exports, {
 });
 module.exports = __toCommonJS(index_exports);
 
-// src/react/threaded.tsx
+// src/react/Threadium.tsx
 var import_react = require("react");
 
 // src/core/env.ts
@@ -425,7 +425,7 @@ function Threaded(defaults = {}) {
   };
 }
 
-// src/react/threaded.tsx
+// src/react/Threadium.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
 function Threadium({ children, poolSize, minWorkTimeMs, warmup = true, strategy = "auto" }) {
   const [isClient, setIsClient] = (0, import_react.useState)(false);

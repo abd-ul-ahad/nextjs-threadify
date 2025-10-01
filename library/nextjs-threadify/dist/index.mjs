@@ -1,4 +1,4 @@
-// src/react/threaded.tsx
+// src/react/Threadium.tsx
 import { useEffect, useRef, useState } from "react";
 
 // src/core/env.ts
@@ -392,7 +392,7 @@ function Threaded(defaults = {}) {
   };
 }
 
-// src/react/threaded.tsx
+// src/react/Threadium.tsx
 import { jsx } from "react/jsx-runtime";
 function Threadium({ children, poolSize, minWorkTimeMs, warmup = true, strategy = "auto" }) {
   const [isClient, setIsClient] = useState(false);
