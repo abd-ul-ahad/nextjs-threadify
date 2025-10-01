@@ -2,44 +2,95 @@
 
 A lightweight, high-performance worker pool library for browsers that enables you to run CPU-intensive tasks on background threads with zero configuration. Perfect for React/Next.js applications that need to perform heavy computations without blocking the UI.
 
+## Threadium and useThreaded (React) — Quick Examples
+
+\`\`\`tsx
+// app/layout.tsx — Wrap your app with Threadium (Next.js App Router)
+import { Threadium } from "next-threadify";
+import type { ReactNode } from "react";
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+return (
+<html lang="en">
+<body>
+<Threadium poolSize={4} strategy="auto" minWorkTimeMs={6} warmup>
+{children}
+</Threadium>
+</body>
+</html>
+);
+}
+\`\`\`
+
+\`\`\`tsx
+// Example component — useThreaded hook for heavy work in a component
+import { useThreaded } from "next-threadify";
+import { useState } from "react";
+
+export default function HeavyDemo() {
+const [out, setOut] = useState<number | null>(null);
+
+const heavy = useThreaded((n: number) => {
+// self-contained function (no external closures)
+let s = 0;
+for (let i = 0; i < n; i++) s += Math.sqrt(i);
+return s;
+}, []); // provide deps to recreate if needed
+
+return (
+<button
+onClick={async () => {
+const res = await heavy(5_000_000);
+setOut(res);
+}} >
+{out == null ? "Run threaded work" : `Result: ${Math.round(out)}`}
+</button>
+);
+}
+\`\`\`
+
 ## Features
 
--  **Zero Configuration** - Works out of the box with sensible defaults
--  **Web Workers Pool** - Efficiently manages multiple worker threads
--  **Transferable Objects** - Automatic zero-copy ArrayBuffer transfers
--  **Smart Scheduling** - Auto-detects heavy vs light tasks
--  **Graceful Fallback** - Runs inline when workers aren't available
--  **Performance Monitoring** - Built-in diagnostics and statistics
--  **Cancellation Support** - Full AbortSignal integration
--  **TypeScript First** - Complete type safety and IntelliSense
+- **Zero Configuration** - Works out of the box with sensible defaults
+- **Web Workers Pool** - Efficiently manages multiple worker threads
+- **Transferable Objects** - Automatic zero-copy ArrayBuffer transfers
+- **Smart Scheduling** - Auto-detects heavy vs light tasks
+- **Graceful Fallback** - Runs inline when workers aren't available
+- **Performance Monitoring** - Built-in diagnostics and statistics
+- **Cancellation Support** - Full AbortSignal integration
+- **TypeScript First** - Complete type safety and IntelliSense
 
 ## Installation
 
-```bash
+\`\`\`bash
+
 # npm
-npm install nextjs-threadify
+
+npm install next-threadify
 
 # yarn
-yarn add nextjs-threadify
+
+yarn add next-threadify
 
 # pnpm
-pnpm add nextjs-threadify
-```
+
+pnpm add next-threadify
+\`\`\`
 
 ## Quick Start
 
-```typescript
-import { threaded } from "nextjs-threadify";
+\`\`\`typescript
+import { threaded } from "next-threadify";
 
 // Wrap any CPU-intensive function
 const heavyComputation = threaded((numbers: number[]) => {
-  return numbers.reduce((sum, n) => sum + Math.sqrt(n * n + 1), 0);
+return numbers.reduce((sum, n) => sum + Math.sqrt(n \* n + 1), 0);
 });
 
 // Use it - runs on background thread automatically
 const result = await heavyComputation([1, 2, 3, 4, 5]);
 console.log("Result:", result);
-```
+\`\`\`
 
 That's it! No configuration needed. The function automatically runs on a worker thread pool.
 
@@ -47,42 +98,42 @@ That's it! No configuration needed. The function automatically runs on a worker 
 
 ### Basic Usage
 
-```typescript
-import { threaded } from "nextjs-threadify";
+\`\`\`typescript
+import { threaded } from "next-threadify";
 
 // Any pure function can be made threaded
 const fibonacci = threaded((n: number): number => {
-  if (n <= 1) return n;
-  return fibonacci(n - 1) + fibonacci(n - 2);
+if (n <= 1) return n;
+return fibonacci(n - 1) + fibonacci(n - 2);
 });
 
 // Automatically runs on worker thread
 const result = await fibonacci(40);
-```
+\`\`\`
 
 ### React/Next.js Integration
 
-```tsx
-import { threaded, parallelMap } from "nextjs-threadify";
+\`\`\`tsx
+import { threaded, parallelMap } from "next-threadify";
 import { useState } from "react";
 
 // Heavy image processing function
 const processImage = threaded((imageData: Uint8Array) => {
-  const processed = new Uint8Array(imageData.length);
-  for (let i = 0; i < imageData.length; i += 4) {
-    processed[i] = Math.min(255, imageData[i] * 1.2); // R
-    processed[i + 1] = Math.min(255, imageData[i + 1] * 1.1); // G
-    processed[i + 2] = Math.min(255, imageData[i + 2] * 0.9); // B
-    processed[i + 3] = imageData[i + 3]; // A
-  }
-  return processed;
+const processed = new Uint8Array(imageData.length);
+for (let i = 0; i < imageData.length; i += 4) {
+processed[i] = Math.min(255, imageData[i] _ 1.2); // R
+processed[i + 1] = Math.min(255, imageData[i + 1] _ 1.1); // G
+processed[i + 2] = Math.min(255, imageData[i + 2] \* 0.9); // B
+processed[i + 3] = imageData[i + 3]; // A
+}
+return processed;
 });
 
 function ImageProcessor() {
-  const [processing, setProcessing] = useState(false);
+const [processing, setProcessing] = useState(false);
 
-  const handleImageUpload = async (file: File) => {
-    setProcessing(true);
+const handleImageUpload = async (file: File) => {
+setProcessing(true);
 
     const arrayBuffer = await file.arrayBuffer();
     const imageData = new Uint8Array(arrayBuffer);
@@ -92,19 +143,20 @@ function ImageProcessor() {
 
     setProcessing(false);
     // Use processed image data...
-  };
 
-  return (
-    <input
-      type="file"
-      onChange={(e) =>
-        e.target.files?.[0] && handleImageUpload(e.target.files[0])
-      }
-      disabled={processing}
-    />
-  );
+};
+
+return (
+<input
+type="file"
+onChange={(e) =>
+e.target.files?.[0] && handleImageUpload(e.target.files[0])
 }
-```
+disabled={processing}
+/>
+);
+}
+\`\`\`
 
 ## Configuration Types
 
@@ -112,19 +164,19 @@ function ImageProcessor() {
 
 Configuration options for the worker pool:
 
-```typescript
+\`\`\`typescript
 type ThreadedOptions = {
-  poolSize?: number; // Number of workers (default: hardwareConcurrency - 1, capped at 4)
-  maxQueue?: number; // Max queued tasks before saturation (default: 256)
-  warmup?: boolean; // Warmup workers with tiny jobs (default: true)
-  strategy?: Strategy; // Scheduling strategy (default: "auto")
-  minWorkTimeMs?: number; // Min work time for auto strategy (default: 6ms)
-  saturation?: SaturationPolicy; // Behavior when queue is full (default: "enqueue")
-  preferTransferables?: boolean; // Try to transfer ArrayBuffers (default: true)
-  name?: string; // Pool name for diagnostics
-  timeoutMs?: number; // Default task timeout (default: 10000ms)
+poolSize?: number; // Number of workers (default: hardwareConcurrency - 1, capped at 4)
+maxQueue?: number; // Max queued tasks before saturation (default: 256)
+warmup?: boolean; // Warmup workers with tiny jobs (default: true)
+strategy?: Strategy; // Scheduling strategy (default: "auto")
+minWorkTimeMs?: number; // Min work time for auto strategy (default: 6ms)
+saturation?: SaturationPolicy; // Behavior when queue is full (default: "enqueue")
+preferTransferables?: boolean; // Try to transfer ArrayBuffers (default: true)
+name?: string; // Pool name for diagnostics
+timeoutMs?: number; // Default task timeout (default: 10000ms)
 };
-```
+\`\`\`
 
 **Strategy Options:**
 
@@ -142,16 +194,16 @@ type ThreadedOptions = {
 
 Per-task options that override pool defaults:
 
-```typescript
+\`\`\`typescript
 type RunOptions = {
-  signal?: AbortSignal | null; // Cancellation support
-  timeoutMs?: number; // Per-task timeout
-  priority?: number; // Task priority (higher numbers first)
-  preferTransferables?: boolean; // Override pool transferable preference
-  strategy?: Strategy; // Override pool strategy
-  minWorkTimeMs?: number; // Override min work time heuristic
+signal?: AbortSignal | null; // Cancellation support
+timeoutMs?: number; // Per-task timeout
+priority?: number; // Task priority (higher numbers first)
+preferTransferables?: boolean; // Override pool transferable preference
+strategy?: Strategy; // Override pool strategy
+minWorkTimeMs?: number; // Override min work time heuristic
 };
-```
+\`\`\`
 
 ## API Reference
 
@@ -159,23 +211,23 @@ type RunOptions = {
 
 Converts any pure function into a threaded version that runs on worker threads.
 
-```typescript
-import { threaded } from "nextjs-threadify";
+\`\`\`typescript
+import { threaded } from "next-threadify";
 
 const threadedFunction = threaded(
-  (param1: Type1, param2: Type2) => {
-    // Your computation here
-    return result;
-  },
-  {
-    priority: 1, // Optional: task priority
-    timeoutMs: 5000, // Optional: task timeout
-  }
+(param1: Type1, param2: Type2) => {
+// Your computation here
+return result;
+},
+{
+priority: 1, // Optional: task priority
+timeoutMs: 5000, // Optional: task timeout
+}
 );
 
 // Returns Promise<ResultType>
 const result = await threadedFunction(arg1, arg2);
-```
+\`\`\`
 
 **Important:** Functions must be self-contained (no external variables).
 
@@ -183,222 +235,222 @@ const result = await threadedFunction(arg1, arg2);
 
 Use as a decorator for class methods or to wrap functions.
 
-```typescript
-import { Threaded } from "nextjs-threadify";
+\`\`\`typescript
+import { Threaded } from "next-threadify";
 
 class DataProcessor {
-  @Threaded({ priority: 5 })
-  async processLargeDataset(data: number[]): Promise<number[]> {
-    return data.map((x) => Math.sqrt(x * x + 1));
-  }
+@Threaded({ priority: 5 })
+async processLargeDataset(data: number[]): Promise<number[]> {
+return data.map((x) => Math.sqrt(x \* x + 1));
+}
 }
 
 // Or wrap functions directly
 const wrappedFunction = Threaded({ timeoutMs: 3000 })((data: string) => {
-  return data.split("").reverse().join("");
+return data.split("").reverse().join("");
 });
-```
+\`\`\`
 
 ### parallelMap(items, mapper, options?)
 
 Process arrays in parallel across multiple worker threads.
 
-```typescript
-import { parallelMap } from "nextjs-threadify";
+\`\`\`typescript
+import { parallelMap } from "next-threadify";
 
-const numbers = Array.from({ length: 10000 }, (_, i) => i);
+const numbers = Array.from({ length: 10000 }, (\_, i) => i);
 
 const results = await parallelMap(
-  numbers,
-  (num, index) => {
-    // This runs in parallel across workers
-    return Math.sqrt(num) + Math.sin(num);
-  },
-  {
-    chunkSize: 100, // Items per worker chunk
-    priority: 1, // Task priority
-  }
+numbers,
+(num, index) => {
+// This runs in parallel across workers
+return Math.sqrt(num) + Math.sin(num);
+},
+{
+chunkSize: 100, // Items per worker chunk
+priority: 1, // Task priority
+}
 );
 
 console.log(`Processed ${results.length} items in parallel`);
-```
+\`\`\`
 
 ### configureThreaded(opts)
 
 Configure the global worker pool settings.
 
-```typescript
-import { configureThreaded } from "nextjs-threadify";
+\`\`\`typescript
+import { configureThreaded } from "next-threadify";
 
 configureThreaded({
-  poolSize: 8, // Number of worker threads
-  strategy: "auto", // 'auto' | 'always' | 'inline'
-  timeoutMs: 10000, // Default timeout per task
-  preferTransferables: true, // Use transferable objects
-  name: "my-app-pool", // Pool name for debugging
+poolSize: 8, // Number of worker threads
+strategy: "auto", // 'auto' | 'always' | 'inline'
+timeoutMs: 10000, // Default timeout per task
+preferTransferables: true, // Use transferable objects
+name: "my-app-pool", // Pool name for debugging
 });
-```
+\`\`\`
 
 ### getThreadedStats()
 
 Get real-time statistics about your worker pool performance.
 
-```typescript
-import { getThreadedStats } from "nextjs-threadify";
+\`\`\`typescript
+import { getThreadedStats } from "next-threadify";
 
 const stats = getThreadedStats();
 console.log({
-  poolSize: stats.poolSize, // Total workers
-  busy: stats.busy, // Currently working
-  queued: stats.queued, // Tasks waiting
-  completed: stats.completed, // Total completed
-  avgLatencyMs: stats.avgLatencyMs, // Average response time
+poolSize: stats.poolSize, // Total workers
+busy: stats.busy, // Currently working
+queued: stats.queued, // Tasks waiting
+completed: stats.completed, // Total completed
+avgLatencyMs: stats.avgLatencyMs, // Average response time
 });
-```
+\`\`\`
 
 ### destroyThreaded()
 
 Clean up worker pool resources (call when your app shuts down).
 
-```typescript
-import { destroyThreaded } from "nextjs-threadify";
+\`\`\`typescript
+import { destroyThreaded } from "next-threadify";
 
 // In Next.js, you might call this in cleanup
 useEffect(() => {
-  return () => {
-    destroyThreaded();
-  };
+return () => {
+destroyThreaded();
+};
 }, []);
-```
+\`\`\`
 
 ## Common Use Cases
 
 ### Data Processing
 
-```typescript
-import { threaded, parallelMap } from "nextjs-threadify";
+\`\`\`typescript
+import { threaded, parallelMap } from "next-threadify";
 
 // Process CSV data
 const processCSV = threaded((csvString: string) => {
-  return csvString.split("\n").map((row) => {
-    const cells = row.split(",");
-    return {
-      name: cells[0],
-      value: parseFloat(cells[1]) * 1.1,
-      processed: new Date().toISOString(),
-    };
-  });
+return csvString.split("\n").map((row) => {
+const cells = row.split(",");
+return {
+name: cells[0],
+value: parseFloat(cells[1]) \* 1.1,
+processed: new Date().toISOString(),
+};
+});
 });
 
 // Bulk data transformation
 const transformData = async (records: any[]) => {
-  return await parallelMap(records, (record) => {
-    // Heavy transformation per record
-    return {
-      ...record,
-      computed: heavyCalculation(record.value),
-      normalized: record.value / 100,
-    };
-  });
+return await parallelMap(records, (record) => {
+// Heavy transformation per record
+return {
+...record,
+computed: heavyCalculation(record.value),
+normalized: record.value / 100,
 };
-```
+});
+};
+\`\`\`
 
 ### Image/Media Processing
 
-```typescript
-import { threaded } from "nextjs-threadify";
+\`\`\`typescript
+import { threaded } from "next-threadify";
 
 const resizeImage = threaded(
-  (imageData: Uint8Array, width: number, height: number) => {
-    // Implement image resizing algorithm
-    const resized = new Uint8Array(width * height * 4);
-    // ... resizing logic
-    return resized;
-  }
+(imageData: Uint8Array, width: number, height: number) => {
+// Implement image resizing algorithm
+const resized = new Uint8Array(width _ height _ 4);
+// ... resizing logic
+return resized;
+}
 );
 
 const applyFilter = threaded((pixels: Uint8Array, filterType: string) => {
-  const filtered = new Uint8Array(pixels.length);
+const filtered = new Uint8Array(pixels.length);
 
-  for (let i = 0; i < pixels.length; i += 4) {
-    switch (filterType) {
-      case "sepia":
-        // Apply sepia effect
-        break;
-      case "blur":
-        // Apply blur effect
-        break;
-    }
-  }
+for (let i = 0; i < pixels.length; i += 4) {
+switch (filterType) {
+case "sepia":
+// Apply sepia effect
+break;
+case "blur":
+// Apply blur effect
+break;
+}
+}
 
-  return filtered;
+return filtered;
 });
-```
+\`\`\`
 
 ### Mathematical Computations
 
-```typescript
-import { parallelMap } from "nextjs-threadify";
+\`\`\`typescript
+import { parallelMap } from "next-threadify";
 
 // Monte Carlo simulation
 const runSimulation = async (iterations: number) => {
-  const chunks = Array.from({ length: 100 }, (_, i) => iterations / 100);
+const chunks = Array.from({ length: 100 }, (\_, i) => iterations / 100);
 
-  const results = await parallelMap(chunks, (chunkSize) => {
-    let hits = 0;
-    for (let i = 0; i < chunkSize; i++) {
-      const x = Math.random() * 2 - 1;
-      const y = Math.random() * 2 - 1;
-      if (x * x + y * y <= 1) hits++;
-    }
-    return hits;
-  });
+const results = await parallelMap(chunks, (chunkSize) => {
+let hits = 0;
+for (let i = 0; i < chunkSize; i++) {
+const x = Math.random() _ 2 - 1;
+const y = Math.random() _ 2 - 1;
+if (x _ x + y _ y <= 1) hits++;
+}
+return hits;
+});
 
-  const totalHits = results.reduce((sum, hits) => sum + hits, 0);
-  return (totalHits / iterations) * 4; // Estimate of π
+const totalHits = results.reduce((sum, hits) => sum + hits, 0);
+return (totalHits / iterations) \* 4; // Estimate of π
 };
 
 const piEstimate = await runSimulation(10000000);
-```
+\`\`\`
 
 ## Error Handling
 
-```typescript
-import { threaded } from "nextjs-threadify";
+\`\`\`typescript
+import { threaded } from "next-threadify";
 
 const riskyOperation = threaded((data: number[]) => {
-  if (data.length === 0) {
-    throw new Error("Empty array not allowed");
-  }
-  return data.reduce((sum, n) => sum + n, 0);
+if (data.length === 0) {
+throw new Error("Empty array not allowed");
+}
+return data.reduce((sum, n) => sum + n, 0);
 });
 
 try {
-  const result = await riskyOperation([1, 2, 3]);
-  console.log("Success:", result);
+const result = await riskyOperation([1, 2, 3]);
+console.log("Success:", result);
 } catch (error) {
-  console.error("Task failed:", error.message);
+console.error("Task failed:", error.message);
 
-  // Handle specific error types
-  if (error.name === "TimeoutError") {
-    console.log("Task timed out");
-  } else if (error.name === "AbortError") {
-    console.log("Task was cancelled");
-  }
+// Handle specific error types
+if (error.name === "TimeoutError") {
+console.log("Task timed out");
+} else if (error.name === "AbortError") {
+console.log("Task was cancelled");
 }
-```
+}
+\`\`\`
 
 ## Cancellation
 
-```typescript
-import { threaded } from "nextjs-threadify";
+\`\`\`typescript
+import { threaded } from "next-threadify";
 
 const longRunningTask = threaded((iterations: number) => {
-  let result = 0;
-  for (let i = 0; i < iterations; i++) {
-    result += Math.random();
-  }
-  return result;
+let result = 0;
+for (let i = 0; i < iterations; i++) {
+result += Math.random();
+}
+return result;
 });
 
 // Create abort controller
@@ -409,29 +461,29 @@ const taskPromise = longRunningTask(10000000);
 
 // Cancel after 2 seconds
 setTimeout(() => {
-  controller.abort();
+controller.abort();
 }, 2000);
 
 try {
-  const result = await taskPromise;
-  console.log("Completed:", result);
+const result = await taskPromise;
+console.log("Completed:", result);
 } catch (error) {
-  if (error.name === "AbortError") {
-    console.log("Task was cancelled by user");
-  }
+if (error.name === "AbortError") {
+console.log("Task was cancelled by user");
 }
-```
+}
+\`\`\`
 
 ## Performance Monitoring
 
-```typescript
-import { getThreadedStats } from "nextjs-threadify";
+\`\`\`typescript
+import { getThreadedStats } from "next-threadify";
 
 // Monitor performance in real-time
 setInterval(() => {
-  const stats = getThreadedStats();
+const stats = getThreadedStats();
 
-  console.log(`
+console.log(`\n
     Pool Status:
     - Workers: ${stats.busy}/${stats.poolSize} busy
     - Queue: ${stats.queued} pending
@@ -439,47 +491,47 @@ setInterval(() => {
     - Average latency: ${stats.avgLatencyMs}ms
   `);
 
-  // Alert if performance is degrading
-  if (stats.avgLatencyMs > 100) {
-    console.warn("High latency detected!");
-  }
+// Alert if performance is degrading
+if (stats.avgLatencyMs > 100) {
+console.warn("High latency detected!");
+}
 
-  if (stats.queued > 50) {
-    console.warn("Queue is getting backed up!");
-  }
+if (stats.queued > 50) {
+console.warn("Queue is getting backed up!");
+}
 }, 5000);
-```
+\`\`\`
 
 ## Configuration Options
 
 ### ThreadedOptions
 
-```typescript
+\`\`\`typescript
 type ThreadedOptions = {
-  poolSize?: number; // Number of workers (default: CPU cores - 1)
-  maxQueue?: number; // Max queued tasks (default: 256)
-  warmup?: boolean; // Warmup workers on start (default: true)
-  strategy?: "auto" | "always" | "inline"; // When to use workers
-  minWorkTimeMs?: number; // Min time for worker vs inline (default: 6ms)
-  saturation?: "reject" | "inline" | "enqueue"; // Queue full behavior
-  preferTransferables?: boolean; // Use zero-copy transfers (default: true)
-  name?: string; // Pool name for debugging
-  timeoutMs?: number; // Default task timeout (default: 10000ms)
+poolSize?: number; // Number of workers (default: CPU cores - 1)
+maxQueue?: number; // Max queued tasks (default: 256)
+warmup?: boolean; // Warmup workers on start (default: true)
+strategy?: "auto" | "always" | "inline"; // When to use workers
+minWorkTimeMs?: number; // Min time for worker vs inline (default: 6ms)
+saturation?: "reject" | "inline" | "enqueue"; // Queue full behavior
+preferTransferables?: boolean; // Use zero-copy transfers (default: true)
+name?: string; // Pool name for debugging
+timeoutMs?: number; // Default task timeout (default: 10000ms)
 };
-```
+\`\`\`
 
 ### RunOptions
 
-```typescript
+\`\`\`typescript
 type RunOptions = {
-  signal?: AbortSignal; // Cancellation support
-  timeoutMs?: number; // Task-specific timeout
-  priority?: number; // Higher number = higher priority
-  preferTransferables?: boolean; // Override pool setting
-  strategy?: "auto" | "always" | "inline"; // Override pool strategy
-  minWorkTimeMs?: number; // Override work time threshold
+signal?: AbortSignal; // Cancellation support
+timeoutMs?: number; // Task-specific timeout
+priority?: number; // Higher number = higher priority
+preferTransferables?: boolean; // Override pool setting
+strategy?: "auto" | "always" | "inline"; // Override pool strategy
+minWorkTimeMs?: number; // Override work time threshold
 };
-```
+\`\`\`
 
 ## Important Rules
 
@@ -487,24 +539,26 @@ type RunOptions = {
 
 ✅ **Good - Self-contained functions:**
 
-```typescript
+\`\`\`typescript
 const good = threaded((x: number, multiplier: number) => {
-  const helper = (n: number) => n * 2; // Local functions OK
-  return helper(x) * multiplier; // Parameters OK
+const helper = (n: number) => n _ 2; // Local functions OK
+return helper(x) _ multiplier; // Parameters OK
 });
 
 await good(5, 10); // Pass values as parameters
-```
+\`\`\`
 
 ❌ **Bad - External dependencies:**
 
-```typescript
+\`\`\`typescript
 const external = 10; // External variable
 
-const bad = threaded((x: number) => {
-  return x * external; // Won't work - external not available in worker!
-});
-```
+const bad = threaded((x) => x \* external); // ❌
+
+// Solution: Pass as parameter
+const fixed = threaded((x, mult) => x \* mult);
+await fixed(5, external); // ✅
+\`\`\`
 
 ### Performance Guidelines
 
@@ -525,64 +579,65 @@ const bad = threaded((x: number) => {
 
 **"Function uses external variable"**
 
-```typescript
+\`\`\`typescript
 // Problem: External closure
 const multiplier = 10;
-const broken = threaded((x) => x * multiplier); // ❌
+const broken = threaded((x) => x \* multiplier); // ❌
 
 // Solution: Pass as parameter
-const fixed = threaded((x, mult) => x * mult);
+const fixed = threaded((x, mult) => x \* mult);
 await fixed(5, multiplier); // ✅
-```
+\`\`\`
 
 **"Task timing out"**
 
-```typescript
+\`\`\`typescript
 // Increase timeout for long-running tasks
 const longTask = threaded(heavyFunction, { timeoutMs: 30000 });
-```
+\`\`\`
 
 **"Too many queued tasks"**
 
-```typescript
+\`\`\`typescript
 // Increase queue size or change saturation policy
 configureThreaded({
-  maxQueue: 1000,
-  saturation: "inline", // Run inline when queue full
+maxQueue: 1000,
+saturation: "inline", // Run inline when queue full
 });
-```
+\`\`\`
 
 ## Next.js Integration Tips
 
-```typescript
-// pages/_app.tsx - Configure once globally
-import { configureThreaded } from "nextjs-threadify";
+\`\`\`typescript
+// pages/\_app.tsx - Configure once globally
+import { configureThreaded } from "next-threadify";
 
 export default function App({ Component, pageProps }) {
-  useEffect(() => {
-    configureThreaded({
-      name: "my-nextjs-app",
-      poolSize: 4,
-    });
+useEffect(() => {
+configureThreaded({
+name: "my-nextjs-app",
+poolSize: 4,
+});
 
     // Cleanup on unmount
     return () => destroyThreaded();
-  }, []);
 
-  return <Component {...pageProps} />;
+}, []);
+
+return <Component {...pageProps} />;
 }
-```
+\`\`\`
 
-```typescript
+\`\`\`typescript
 // components/DataTable.tsx - Use in components
-import { parallelMap } from "nextjs-threadify";
+import { parallelMap } from "next-threadify";
 
 export function DataTable({ data }) {
-  const [processed, setProcessed] = useState([]);
-  const [loading, setLoading] = useState(false);
+const [processed, setProcessed] = useState([]);
+const [loading, setLoading] = useState(false);
 
-  const processData = async () => {
-    setLoading(true);
+const processData = async () => {
+setLoading(true);
 
     const results = await parallelMap(data, (row) => ({
       ...row,
@@ -592,21 +647,22 @@ export function DataTable({ data }) {
 
     setProcessed(results);
     setLoading(false);
-  };
 
-  return (
-    <div>
-      <button onClick={processData} disabled={loading}>
-        {loading ? "Processing..." : "Process Data"}
-      </button>
-      {/* Render processed data */}
-    </div>
-  );
+};
+
+return (
+<div>
+<button onClick={processData} disabled={loading}>
+{loading ? "Processing..." : "Process Data"}
+</button>
+{/_ Render processed data _/}
+</div>
+);
 }
-```
+\`\`\`
 
 ---
 
 ## License
 
-MIT License - see LICENSE file for details.
+BSD 2-Clause License - see LICENSE file for details.

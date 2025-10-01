@@ -1,4 +1,4 @@
-export { Threadium, useThreaded } from "./src/react/threaded";
+export { Threadium, useThreaded } from "./src/react/Threadium";
 
 export { threaded } from "./src/api/threaded";
 export {
