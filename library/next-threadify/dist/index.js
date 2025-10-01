@@ -139,16 +139,15 @@ function makeWorkerBlobUrl() {
   return URL.createObjectURL(blob);
 }
 var WorkerPool = class {
-  opts;
-  url = null;
-  workers = [];
-  queue = [];
-  taskMap = /* @__PURE__ */ new Map();
-  completed = 0;
-  failed = 0;
-  latencies = [];
-  destroyed = false;
   constructor(opts = {}) {
+    this.url = null;
+    this.workers = [];
+    this.queue = [];
+    this.taskMap = /* @__PURE__ */ new Map();
+    this.completed = 0;
+    this.failed = 0;
+    this.latencies = [];
+    this.destroyed = false;
     const cores = isBrowser && navigator?.hardwareConcurrency || 4;
     const defaultPool = Math.max(1, Math.min(cores - 1, 4));
     this.opts = {
