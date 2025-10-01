@@ -1,8 +1,11 @@
-// index.ts
+// src/react/threaded.tsx
+import { useEffect, useRef, useState } from "react";
+
+// src/core/env.ts
 var isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
 var hasWorker = isBrowser && typeof Worker !== "undefined";
-var __taskCounter = 0;
-var nextTaskId = () => ++__taskCounter;
+
+// src/core/transferables.ts
 function isTypedArray(v) {
   return ArrayBuffer.isView(v) && v.buffer instanceof ArrayBuffer;
 }
@@ -36,6 +39,8 @@ function collectTransferablesDeep(value, limit = 128) {
   }
   return out;
 }
+
+// src/core/worker-blob.ts
 function makeWorkerBlobUrl() {
   const workerFn = () => {
     const serializeError = (err) => {
@@ -87,10 +92,7 @@ function makeWorkerBlobUrl() {
       try {
         let fn = fnCache.get(code);
         if (!fn) {
-          fn = new Function(
-            "ARGS",
-            `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`
-          );
+          fn = new Function("ARGS", `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`);
           fnCache.set(code, fn);
         }
         const result = await fn(args);
@@ -109,6 +111,12 @@ function makeWorkerBlobUrl() {
   const blob = new Blob([src], { type: "text/javascript" });
   return URL.createObjectURL(blob);
 }
+
+// src/core/id.ts
+var __taskCounter = 0;
+var nextTaskId = () => ++__taskCounter;
+
+// src/core/worker-pool.ts
 var WorkerPool = class {
   constructor(opts = {}) {
     this.url = null;
@@ -131,7 +139,6 @@ var WorkerPool = class {
       preferTransferables: opts.preferTransferables ?? true,
       name: opts.name ?? "cthread",
       timeoutMs: opts.timeoutMs ?? 1e4
-      // Updated default worker timeout
     };
     if (hasWorker) {
       this.url = makeWorkerBlobUrl();
@@ -139,17 +146,13 @@ var WorkerPool = class {
         const w = new Worker(this.url);
         const slot = { id: i, w, busy: false };
         w.onmessage = (e) => this.handleWorkerMessage(slot, e);
-        w.onerror = (e) => {
+        w.onerror = () => {
         };
         this.workers.push(slot);
       }
       if (this.opts.warmup) this.warmup();
     }
   }
-  /**
-   * Warmup: post a tiny job to each worker to prime the runtime/JIT.
-   * This reduces the latency of the first "real" task.
-   */
   warmup() {
     const tiny = () => 1 + 1;
     const code = tiny.toString();
@@ -165,10 +168,6 @@ var WorkerPool = class {
       }
     }
   }
-  /**
-   * Terminate workers, revoke blob URL and cleanup internal state.
-   * Safe to call multiple times.
-   */
   destroy() {
     if (this.destroyed) return;
     for (const slot of this.workers) {
@@ -185,9 +184,6 @@ var WorkerPool = class {
     this.queue = [];
     this.destroyed = true;
   }
-  /**
-   * Produce a snapshot of pool statistics for diagnostics.
-   */
   getStats() {
     const busy = this.workers.filter((w) => w.busy).length;
     const avg = this.latencies.length ? this.latencies.reduce((a, b) => a + b, 0) / this.latencies.length : 0;
@@ -203,10 +199,6 @@ var WorkerPool = class {
       avgLatencyMs: Math.round(avg)
     };
   }
-  /**
-   * Internal worker message handler. Matches responses to pending tasks and
-   * resolves/rejects the stored promises.
-   */
   handleWorkerMessage(slot, e) {
     slot.busy = false;
     const msg = e.data || {};
@@ -229,26 +221,16 @@ var WorkerPool = class {
     }
     this.pump();
   }
-  /**
-   * Return the first free worker slot or null when none available.
-   */
   pickFreeWorker() {
     for (const slot of this.workers) if (!slot.busy) return slot;
     return null;
   }
-  /**
-   * Insert a task into the queue with priority ordering (higher first).
-   */
   schedule(task) {
     let i = this.queue.length - 1;
     while (i >= 0 && this.queue[i].priority < task.priority) i--;
     this.queue.splice(i + 1, 0, task);
     this.pump();
   }
-  /**
-   * Attempt to assign queued tasks to free workers. Called after state
-   * changes (task completion, worker freed, scheduling new task, etc.).
-   */
   pump() {
     if (!hasWorker) return;
     while (true) {
@@ -257,9 +239,7 @@ var WorkerPool = class {
       const task = this.queue.shift();
       if (!task) break;
       if (task.signal?.aborted) {
-        task.reject(
-          Object.assign(new Error("Aborted"), { name: "AbortError" })
-        );
+        task.reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
         continue;
       }
       slot.busy = true;
@@ -273,9 +253,7 @@ var WorkerPool = class {
         const rem = Math.max(0, task.timeoutAt - performance.now());
         setTimeout(() => {
           if (this.taskMap.has(id)) {
-            this.taskMap.get(id)?.reject(
-              Object.assign(new Error("Timeout"), { name: "TimeoutError" })
-            );
+            this.taskMap.get(id)?.reject(Object.assign(new Error("Timeout"), { name: "TimeoutError" }));
             this.taskMap.delete(id);
           }
         }, rem);
@@ -290,15 +268,13 @@ var WorkerPool = class {
       }
     }
   }
-  /**
-   * Main entry point for running a task. Honor strategy/inline heuristics,
-   * saturation policy, and cancellation. Returns a Promise that resolves with
-   * the function result or rejects with an error-like object.
-   */
+  async runInline(code, args) {
+    const fn = new Function("ARGS", `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`);
+    return fn(args);
+  }
   run(code, args, options = {}) {
     const id = nextTaskId();
     const strategy = options.strategy ?? this.opts.strategy;
-    const minWork = options.minWorkTimeMs ?? this.opts.minWorkTimeMs;
     if (!hasWorker || strategy === "inline") {
       return this.runInline(code, args);
     }
@@ -320,9 +296,7 @@ var WorkerPool = class {
     }
     const preferTransferables = options.preferTransferables ?? this.opts.preferTransferables;
     if (options.signal?.aborted) {
-      return Promise.reject(
-        Object.assign(new Error("Aborted"), { name: "AbortError" })
-      );
+      return Promise.reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
     }
     return new Promise((resolve, reject) => {
       const t = {
@@ -353,20 +327,9 @@ var WorkerPool = class {
       this.schedule(t);
     });
   }
-  /**
-   * Execute the provided function source inline on the main thread. This
-   * constructs a new Function wrapper and invokes it with the `args` array.
-   * Note: this is synchronous from the perspective of the invoked function
-   * but we return a Promise so the API is consistent.
-   */
-  async runInline(code, args) {
-    const fn = new Function(
-      "ARGS",
-      `"use strict"; const __FN__ = (${code}); return __FN__.apply(null, ARGS);`
-    );
-    return fn(args);
-  }
 };
+
+// src/api/pool.ts
 var __pool = null;
 var __poolOpts = null;
 function configureThreaded(opts = {}) {
@@ -399,6 +362,8 @@ function destroyThreaded() {
     __pool = null;
   }
 }
+
+// src/api/threaded.ts
 function threaded(fn, defaults = {}) {
   const code = fn.toString();
   return (...args) => {
@@ -426,13 +391,68 @@ function Threaded(defaults = {}) {
     return target;
   };
 }
+
+// src/react/threaded.tsx
+import { jsx } from "react/jsx-runtime";
+function Threadium({ children, poolSize, minWorkTimeMs, warmup = true, strategy = "auto" }) {
+  const [isClient, setIsClient] = useState(false);
+  const containerRef = useRef(null);
+  const rafRef = useRef(null);
+  useEffect(() => {
+    setIsClient(true);
+    configureThreaded({
+      poolSize,
+      minWorkTimeMs,
+      warmup,
+      strategy,
+      preferTransferables: true,
+      saturation: "enqueue"
+    });
+    const animate = () => {
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, [poolSize, minWorkTimeMs, warmup, strategy]);
+  if (!isClient) {
+    return /* @__PURE__ */ jsx("div", { ref: containerRef, children });
+  }
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      ref: containerRef,
+      style: {
+        willChange: "transform",
+        transform: "translateZ(0)",
+        backfaceVisibility: "hidden",
+        perspective: 1e3
+      },
+      children
+    }
+  );
+}
+function useThreaded(fn, deps = []) {
+  const threadedFnRef = useRef(null);
+  useEffect(() => {
+    threadedFnRef.current = threaded(fn);
+  }, deps);
+  return (...args) => {
+    if (!threadedFnRef.current) {
+      return Promise.resolve(fn(...args));
+    }
+    return threadedFnRef.current(...args);
+  };
+}
+
+// src/api/parallel.ts
 async function parallelMap(items, mapper, options = {}) {
   const pool = getPool();
   const code = mapper.toString();
-  const chunkSize = Math.max(
-    1,
-    options.chunkSize ?? Math.ceil(items.length / Math.max(1, pool.getStats().poolSize))
-  );
+  const chunkSize = Math.max(1, options.chunkSize ?? Math.ceil(items.length / Math.max(1, pool.getStats().poolSize)));
   const chunks = [];
   for (let i = 0; i < items.length; i += chunkSize)
     chunks.push({ start: i, end: Math.min(items.length, i + chunkSize) });
@@ -453,9 +473,11 @@ async function parallelMap(items, mapper, options = {}) {
 }
 export {
   Threaded,
+  Threadium,
   configureThreaded,
   destroyThreaded,
   getThreadedStats,
   parallelMap,
-  threaded
+  threaded,
+  useThreaded
 };

@@ -1,5 +1,5 @@
 {
-  "name": "next-threadify",
+  "name": "nextjs-threadify",
   "version": "1.0.1",
   "description": "Threading/multitasking utilities for Next.js",
   "main": "dist/index.js",
@@ -43,7 +43,7 @@
     "nextjs-hooks"
   ],
   "author": "Abdul Ahad",
-  "license": "Apache-2.0",
+  "license": "BSD-2-Clause",
   "peerDependencies": {
     "next": ">=13",
     "react": ">=18"
