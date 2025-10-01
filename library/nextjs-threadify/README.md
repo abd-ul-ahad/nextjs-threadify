@@ -19,21 +19,21 @@ A lightweight, high-performance worker pool library for browsers that enables yo
 
 # npm
 
-npm install next-threadify
+npm install nextjs-threadify
 
 # yarn
 
-yarn add next-threadify
+yarn add nextjs-threadify
 
 # pnpm
 
-pnpm add next-threadify
+pnpm add nextjs-threadify
 \`\`\`
 
 ## Quick Start
 
 \`\`\`typescript
-import { threaded } from "next-threadify";
+import { threaded } from "nextjs-threadify";
 
 // Wrap any CPU-intensive function
 const heavyComputation = threaded((numbers: number[]) => {
@@ -52,7 +52,7 @@ That's it! No configuration needed. The function automatically runs on a worker 
 ### Basic Usage
 
 \`\`\`typescript
-import { threaded } from "next-threadify";
+import { threaded } from "nextjs-threadify";
 
 // Any pure function can be made threaded
 const fibonacci = threaded((n: number): number => {
@@ -67,7 +67,7 @@ const result = await fibonacci(40);
 ### React/Next.js Integration
 
 \`\`\`tsx
-import { threaded, parallelMap } from "next-threadify";
+import { threaded, parallelMap } from "nextjs-threadify";
 import { useState } from "react";
 
 // Heavy image processing function
@@ -165,7 +165,7 @@ minWorkTimeMs?: number; // Override min work time heuristic
 Converts any pure function into a threaded version that runs on worker threads.
 
 \`\`\`typescript
-import { threaded } from "next-threadify";
+import { threaded } from "nextjs-threadify";
 
 const threadedFunction = threaded(
 (param1: Type1, param2: Type2) => {
@@ -189,7 +189,7 @@ const result = await threadedFunction(arg1, arg2);
 Use as a decorator for class methods or to wrap functions.
 
 \`\`\`typescript
-import { Threaded } from "next-threadify";
+import { Threaded } from "nextjs-threadify";
 
 class DataProcessor {
 @Threaded({ priority: 5 })
@@ -209,7 +209,7 @@ return data.split("").reverse().join("");
 Process arrays in parallel across multiple worker threads.
 
 \`\`\`typescript
-import { parallelMap } from "next-threadify";
+import { parallelMap } from "nextjs-threadify";
 
 const numbers = Array.from({ length: 10000 }, (\_, i) => i);
 
@@ -233,7 +233,7 @@ console.log(`Processed ${results.length} items in parallel`);
 Configure the global worker pool settings.
 
 \`\`\`typescript
-import { configureThreaded } from "next-threadify";
+import { configureThreaded } from "nextjs-threadify";
 
 configureThreaded({
 poolSize: 8, // Number of worker threads
@@ -249,7 +249,7 @@ name: "my-app-pool", // Pool name for debugging
 Get real-time statistics about your worker pool performance.
 
 \`\`\`typescript
-import { getThreadedStats } from "next-threadify";
+import { getThreadedStats } from "nextjs-threadify";
 
 const stats = getThreadedStats();
 console.log({
@@ -266,7 +266,7 @@ avgLatencyMs: stats.avgLatencyMs, // Average response time
 Clean up worker pool resources (call when your app shuts down).
 
 \`\`\`typescript
-import { destroyThreaded } from "next-threadify";
+import { destroyThreaded } from "nextjs-threadify";
 
 // In Next.js, you might call this in cleanup
 useEffect(() => {
@@ -281,7 +281,7 @@ destroyThreaded();
 ### Data Processing
 
 \`\`\`typescript
-import { threaded, parallelMap } from "next-threadify";
+import { threaded, parallelMap } from "nextjs-threadify";
 
 // Process CSV data
 const processCSV = threaded((csvString: string) => {
@@ -311,7 +311,7 @@ normalized: record.value / 100,
 ### Image/Media Processing
 
 \`\`\`typescript
-import { threaded } from "next-threadify";
+import { threaded } from "nextjs-threadify";
 
 const resizeImage = threaded(
 (imageData: Uint8Array, width: number, height: number) => {
@@ -343,7 +343,7 @@ return filtered;
 ### Mathematical Computations
 
 \`\`\`typescript
-import { parallelMap } from "next-threadify";
+import { parallelMap } from "nextjs-threadify";
 
 // Monte Carlo simulation
 const runSimulation = async (iterations: number) => {
@@ -369,7 +369,7 @@ const piEstimate = await runSimulation(10000000);
 ## Error Handling
 
 \`\`\`typescript
-import { threaded } from "next-threadify";
+import { threaded } from "nextjs-threadify";
 
 const riskyOperation = threaded((data: number[]) => {
 if (data.length === 0) {
@@ -396,7 +396,7 @@ console.log("Task was cancelled");
 ## Cancellation
 
 \`\`\`typescript
-import { threaded } from "next-threadify";
+import { threaded } from "nextjs-threadify";
 
 const longRunningTask = threaded((iterations: number) => {
 let result = 0;
@@ -430,7 +430,7 @@ console.log("Task was cancelled by user");
 ## Performance Monitoring
 
 \`\`\`typescript
-import { getThreadedStats } from "next-threadify";
+import { getThreadedStats } from "nextjs-threadify";
 
 // Monitor performance in real-time
 setInterval(() => {
@@ -563,7 +563,7 @@ saturation: "inline", // Run inline when queue full
 
 \`\`\`typescript
 // pages/\_app.tsx - Configure once globally
-import { configureThreaded } from "next-threadify";
+import { configureThreaded } from "nextjs-threadify";
 
 export default function App({ Component, pageProps }) {
 useEffect(() => {
@@ -583,7 +583,7 @@ return <Component {...pageProps} />;
 
 \`\`\`typescript
 // components/DataTable.tsx - Use in components
-import { parallelMap } from "next-threadify";
+import { parallelMap } from "nextjs-threadify";
 
 export function DataTable({ data }) {
 const [processed, setProcessed] = useState([]);

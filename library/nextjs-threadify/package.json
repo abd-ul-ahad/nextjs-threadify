@@ -13,12 +13,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/abd-ul-ahad/next-threadify.git"
+    "url": "git+https://github.com/abd-ul-ahad/nextjs-threadify.git"
   },
   "bugs": {
-    "url": "https://github.com/abd-ul-ahad/next-threadify/issues"
+    "url": "https://github.com/abd-ul-ahad/nextjs-threadify/issues"
   },
-  "homepage": "https://github.com/abd-ul-ahad/next-threadify#readme",
+  "homepage": "https://github.com/abd-ul-ahad/nextjs-threadify#readme",
   "keywords": [
     "nextjs",
     "react",

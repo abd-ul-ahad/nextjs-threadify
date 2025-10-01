@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { threaded, getThreadedStats } from "@/library/next-threadify";
-import { Threadium } from "@/library/next-threadify/index";
+import { threaded, getThreadedStats } from "@/library/nextjs-threadify";
+import { Threadium } from "@/library/nextjs-threadify/index";
 
 // Heavy computation component to demonstrate threading
 function HeavyAnimation() {
