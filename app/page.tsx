@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { threaded, getThreadedStats } from "@/library/next-threadify";
-import { Threaded } from "@/library/next-threadify/threaded";
+import { Threadium } from "@/library/next-threadify/index";
 
 // Heavy computation component to demonstrate threading
 function HeavyAnimation() {
-  const [count, setCount] = useState(500000*50000000000000000);
+  const [count, setCount] = useState<number>(0);
   const [result, setResult] = useState<number | null>(null);
   const [computing, setComputing] = useState(false);
 
@@ -165,12 +165,12 @@ export default function Page() {
           </p>
         </div>
 
-        <Threaded>
+        <Threadium>
           <div className="grid gap-6 md:grid-cols-2">
             <HeavyAnimation />
             <SmoothAnimation />
           </div>
-        </Threaded>
+        </Threadium>
 
         <ThreadedStats />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { configureThreaded, threaded } from "./index";
+import { configureThreaded, threaded } from "./Utils";
 
 interface ThreadedProps {
   children: ReactNode;
@@ -42,7 +42,7 @@ interface ThreadedProps {
  * </Threaded>
  * ```
  */
-export function Threaded({
+export function Threadium({
   children,
   poolSize,
   minWorkTimeMs,
