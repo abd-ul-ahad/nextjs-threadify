@@ -9,5 +9,5 @@ export {
 export { parallelMap } from "./api/parallel";
 export type { PoolStats, RunOptions, ThreadedOptions } from "./core/types";
 
-// React integration (kept as-is in src/react/threaded.tsx)
+// React integration
 export { Threadium, useThreaded } from "./react/Threadium";

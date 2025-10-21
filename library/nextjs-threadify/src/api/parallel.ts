@@ -26,13 +26,13 @@ export async function parallelMap<T, R>(
       const slice = items
         .slice(start, end)
         .map((v, i) => [v, start + i] as const);
-      const chunkRunner = (pairs: readonly (readonly [any, number])[]) => {
+      const chunkRunner = (pairs: readonly (readonly [T, number])[]) => {
         const mapperFn = (0, eval)(`(${code})`);
         return pairs.map(([v, idx]) => mapperFn(v, idx, []));
       };
       return pool
         .run(chunkRunner.toString(), [slice], options)
-        .then((results: any[]) => {
+        .then((results: R[]) => {
           for (let i = 0; i < results.length; i++) out[start + i] = results[i];
         });
     })

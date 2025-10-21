@@ -2,7 +2,7 @@
 
 export interface TaskCluster {
   id: string;
-  tasks: any[]; // Using any to avoid circular dependency
+  tasks: unknown[]; // Using unknown to avoid circular dependency
   priority: number;
   estimatedDuration: number;
   resourceType: ResourceType;

@@ -72,9 +72,9 @@ export type RunOptions = {
 export type Task = {
   id: number;
   code: string;
-  args: any[];
-  resolve: (v: any) => void;
-  reject: (e: any) => void;
+  args: unknown[];
+  resolve: (v: unknown) => void;
+  reject: (e: unknown) => void;
   priority: number;
   timeoutAt?: number;
   signal?: AbortSignal | null;

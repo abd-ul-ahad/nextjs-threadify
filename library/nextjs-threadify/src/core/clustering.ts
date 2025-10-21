@@ -64,12 +64,11 @@ export class TaskClusterManager {
 
   /**
    * Select optimal worker for task execution based on clustering and specialization
-   * Enhanced with advanced performance optimization algorithms
    */
   selectOptimalWorker(cluster: TaskCluster | null, availableWorkers: WorkerSlot[]): WorkerSlot | null {
     if (availableWorkers.length === 0) return null;
     
-    // Advanced multi-factor worker selection for maximum performance
+    // Multi-factor worker selection
     const scoredWorkers = availableWorkers.map(worker => {
       const metrics = this.workerMetrics?.get(worker.id);
       const specialization = this.workerSpecializations?.get(worker.id) || "any";
@@ -339,7 +338,7 @@ export class TaskClusterManager {
     const workerMetrics = Array.from(this.workerMetrics.values());
     if (workerMetrics.length <= 1) return 1;
     
-    const loads = workerMetrics.map(w => this.getWorkerLoad({ id: w.workerId, w: null as any, busy: false }));
+    const loads = workerMetrics.map(w => this.getWorkerLoad({ id: w.workerId, w: null as unknown, busy: false }));
     const avgLoad = loads.reduce((sum, load) => sum + load, 0) / loads.length;
     const variance = loads.reduce((sum, load) => sum + Math.pow(load - avgLoad, 2), 0) / loads.length;
     

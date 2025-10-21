@@ -13,13 +13,9 @@ export function makeWorkerBlobUrl() {
       };
     };
 
+    // Use shared transferable utilities (inline for worker isolation)
     function isTypedArray(v: any): boolean {
-      return (
-        typeof v === "object" &&
-        v &&
-        ArrayBuffer.isView(v) &&
-        v.buffer instanceof ArrayBuffer
-      );
+      return ArrayBuffer.isView(v) && v.buffer instanceof ArrayBuffer;
     }
 
     function collectTransferablesDeep(value: any, limit = 128): Transferable[] {
@@ -37,7 +33,6 @@ export function makeWorkerBlobUrl() {
           continue;
         }
         if (isTypedArray(v)) {
-          // @ts-ignore
           out.push(v.buffer);
           continue;
         }
@@ -49,7 +44,7 @@ export function makeWorkerBlobUrl() {
           try {
             stack.push(v[k]);
           } catch {
-            // ignore
+            // ignore getters
           }
         }
       }

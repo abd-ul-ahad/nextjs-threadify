@@ -1,6 +1,7 @@
+// Main library exports - consolidated API
 export { Threadium, useThreaded } from "./src/react/Threadium";
 
-export { threaded } from "./src/api/threaded";
+export { threaded, Threaded } from "./src/api/threaded";
 export {
   configureThreaded,
   destroyThreaded,
@@ -33,8 +34,6 @@ export {
   createSyntheticWorkload,
   BenchmarkSuites,
 } from "./src/api/benchmarking";
-
-export { Threaded } from "./src/api/threaded";
 
 export type { 
   PoolStats, 

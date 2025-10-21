@@ -1,6 +1,6 @@
 {
   "name": "nextjs-threadify",
-  "version": "2.1.0",
+  "version": "3.1.0",
   "description": "Threading/multitasking utilities for Next.js",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -60,6 +60,6 @@
     "eslint": "^8.0.0",
     "react": "^19.1.1",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.3.3"
   }
 }

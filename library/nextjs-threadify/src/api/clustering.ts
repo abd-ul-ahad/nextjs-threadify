@@ -6,26 +6,24 @@ import { getPool } from "./pool";
 /**
  * Enhanced threaded function with clustering support
  */
-export function clusteredThreaded<T extends (...args: any[]) => any>(
+export function clusteredThreaded<T extends (...args: unknown[]) => unknown>(
   fn: T,
   defaults: RunOptions = {}
 ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
   const code = fn.toString();
-  return (...args: any[]) => {
+  return (...args: Parameters<T>) => {
     const pool = getPool();
     return pool.run(code, args, {
       ...defaults,
-      // Enhanced clustering for 50%+ performance gains
       clustering: {
         forceCluster: true,
         clusterId: `clustered-${Date.now()}-${Math.random()}`,
         workerAffinity: "any",
-        priority: 10, // High priority for clustered tasks
+        priority: 10,
         ...defaults.clustering,
       },
-      // Performance optimizations
-      timeoutMs: defaults.timeoutMs || 5000, // Faster timeout
-      minWorkTimeMs: defaults.minWorkTimeMs || 1, // Lower threshold for worker usage
+      timeoutMs: defaults.timeoutMs || 5000,
+      minWorkTimeMs: defaults.minWorkTimeMs || 1,
     });
   };
 }
@@ -33,53 +31,51 @@ export function clusteredThreaded<T extends (...args: any[]) => any>(
 /**
  * CPU-intensive task wrapper with specialized clustering
  */
-export function cpuIntensive<T extends (...args: any[]) => any>(
+export function cpuIntensive<T extends (...args: unknown[]) => unknown>(
   fn: T,
   options: RunOptions = {}
 ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
   return clusteredThreaded(fn, {
     ...options,
-    // Enhanced CPU-intensive clustering for 50%+ performance gains
     clustering: {
       workerAffinity: "cpu-optimized",
       forceCluster: true,
       clusterId: `cpu-intensive-${Date.now()}`,
-      priority: 15, // Highest priority
+      priority: 15,
       ...options.clustering,
     },
-    priority: (options.priority || 0) + 5, // Much higher priority for CPU tasks
-    timeoutMs: options.timeoutMs || 10000, // Longer timeout for CPU tasks
-    minWorkTimeMs: options.minWorkTimeMs || 0.1, // Very low threshold for immediate worker usage
+    priority: (options.priority || 0) + 5,
+    timeoutMs: options.timeoutMs || 10000,
+    minWorkTimeMs: options.minWorkTimeMs || 0.1,
   });
 }
 
 /**
  * Memory-intensive task wrapper with specialized clustering
  */
-export function memoryIntensive<T extends (...args: any[]) => any>(
+export function memoryIntensive<T extends (...args: unknown[]) => unknown>(
   fn: T,
   options: RunOptions = {}
 ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
   return clusteredThreaded(fn, {
     ...options,
-    // Enhanced memory-intensive clustering for 50%+ performance gains
     clustering: {
       workerAffinity: "memory-optimized",
       forceCluster: true,
       clusterId: `memory-intensive-${Date.now()}`,
-      priority: 12, // High priority
+      priority: 12,
       ...options.clustering,
     },
-    priority: (options.priority || 0) + 4, // Higher priority for memory tasks
-    timeoutMs: options.timeoutMs || 8000, // Longer timeout for memory tasks
-    minWorkTimeMs: options.minWorkTimeMs || 0.2, // Low threshold for worker usage
+    priority: (options.priority || 0) + 4,
+    timeoutMs: options.timeoutMs || 8000,
+    minWorkTimeMs: options.minWorkTimeMs || 0.2,
   });
 }
 
 /**
  * I/O-bound task wrapper with specialized clustering
  */
-export function ioBound<T extends (...args: any[]) => any>(
+export function ioBound<T extends (...args: unknown[]) => unknown>(
   fn: T,
   options: RunOptions = {}
 ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
@@ -96,13 +92,13 @@ export function ioBound<T extends (...args: any[]) => any>(
 /**
  * High-priority task wrapper with priority clustering
  */
-export function highPriority<T extends (...args: any[]) => any>(
+export function highPriority<T extends (...args: unknown[]) => unknown>(
   fn: T,
   options: RunOptions = {}
 ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
   return clusteredThreaded(fn, {
     ...options,
-    priority: (options.priority || 0) + 10, // Much higher priority
+    priority: (options.priority || 0) + 10,
     clustering: {
       forceCluster: true,
       ...options.clustering,
@@ -125,13 +121,14 @@ export async function clusteredBatch<T, R>(
   const batchSize = options.batchSize || Math.max(1, Math.floor(items.length / pool.getStats().poolSize));
   
   // Group items into clusters based on strategy
-  const clusters = createIntelligentClusters(items, processor, batchSize, options.clusterStrategy);
+  const clusters = createIntelligentClusters(items, processor, batchSize);
   
   // Process each cluster in parallel
   const results = await Promise.all(
     clusters.map(async (cluster) => {
       const clusterProcessor = clusteredThreaded(
-        async (clusterItems: T[]) => {
+        async (...args: unknown[]) => {
+          const clusterItems = args[0] as T[];
           const promises = clusterItems.map((item, index) => processor(item, cluster.startIndex + index));
           return Promise.all(promises);
         },
@@ -145,7 +142,7 @@ export async function clusteredBatch<T, R>(
         }
       );
       
-      return clusterProcessor(cluster.items);
+      return clusterProcessor(cluster.items) as Promise<R[]>;
     })
   );
   
@@ -175,13 +172,14 @@ export async function smartParallelMap<T, R>(
   }
   
   // Create intelligent clusters
-  const clusters = createIntelligentClusters(items, (item, index) => mapper(item, index, items), chunkSize, options.clusteringStrategy);
+  const clusters = createIntelligentClusters(items, (item, index) => mapper(item, index, items), chunkSize);
   
   // Process with clustering-aware execution
   const results = await Promise.all(
     clusters.map(async (cluster, clusterIndex) => {
       const clusterMapper = clusteredThreaded(
-        async (clusterItems: T[]) => {
+        async (...args: unknown[]) => {
+          const clusterItems = args[0] as T[];
           const promises = clusterItems.map((item, localIndex) => 
             mapper(item, cluster.startIndex + localIndex, items)
           );
@@ -197,7 +195,7 @@ export async function smartParallelMap<T, R>(
         }
       );
       
-      return clusterMapper(cluster.items);
+      return clusterMapper(cluster.items) as Promise<R[]>;
     })
   );
   
@@ -207,7 +205,7 @@ export async function smartParallelMap<T, R>(
 /**
  * Performance-optimized clustering for similar tasks
  */
-export function performanceCluster<T extends (...args: any[]) => any>(
+export function performanceCluster<T extends (...args: unknown[]) => unknown>(
   tasks: Array<{ fn: T; args: Parameters<T>; priority?: number }>,
   options: RunOptions = {}
 ): Promise<Array<Awaited<ReturnType<T>>>> {
@@ -218,7 +216,8 @@ export function performanceCluster<T extends (...args: any[]) => any>(
   return Promise.all(
     clusters.map(async (cluster) => {
       const clusterProcessor = clusteredThreaded(
-        (taskGroup: typeof tasks) => {
+        (...args: unknown[]) => {
+          const taskGroup = args[0] as Array<{ fn: T; args: Parameters<T>; priority?: number }>;
           return taskGroup.map(({ fn, args }) => fn(...args));
         },
         {
@@ -232,7 +231,7 @@ export function performanceCluster<T extends (...args: any[]) => any>(
         }
       );
       
-      return clusterProcessor(cluster);
+      return clusterProcessor(cluster) as Promise<Array<Awaited<ReturnType<T>>>>;
     })
   ).then(results => results.flat());
 }
@@ -248,9 +247,8 @@ interface TaskCluster<T> {
 
 function createIntelligentClusters<T>(
   items: T[],
-  processor: (item: T, index: number) => any,
-  batchSize: number,
-  _strategy: string = "similarity"
+  processor: (item: T, index: number) => unknown,
+  batchSize: number
 ): TaskCluster<T>[] {
   const clusters: TaskCluster<T>[] = [];
   
@@ -267,7 +265,7 @@ function createIntelligentClusters<T>(
   return clusters;
 }
 
-function groupTasksBySimilarity<T extends (...args: any[]) => any>(
+function groupTasksBySimilarity<T extends (...args: unknown[]) => unknown>(
   tasks: Array<{ fn: T; args: Parameters<T>; priority?: number }>
 ): Array<Array<{ fn: T; args: Parameters<T>; priority?: number }>> {
   // Simple similarity grouping based on function code length and argument count
@@ -279,7 +277,10 @@ function groupTasksBySimilarity<T extends (...args: any[]) => any>(
     if (!groups.has(key)) {
       groups.set(key, []);
     }
-    groups.get(key)!.push(task);
+    const group = groups.get(key);
+    if (group) {
+      group.push(task);
+    }
   }
   
   return Array.from(groups.values());

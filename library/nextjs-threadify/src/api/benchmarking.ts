@@ -1,7 +1,7 @@
 // Performance benchmarking and clustering effectiveness metrics
 
 import { getPool, getClusterStats } from "./pool";
-import type { PoolStats } from "../core/types";
+import type { PoolStats, ClusterStats } from "../core/types";
 
 export interface BenchmarkResult {
   name: string;
@@ -31,7 +31,7 @@ export interface BenchmarkSuite {
   name: string;
   tests: Array<{
     name: string;
-    fn: () => Promise<any>;
+    fn: () => Promise<unknown>;
     iterations: number;
     dataSize: number;
   }>;
@@ -41,9 +41,8 @@ export interface BenchmarkSuite {
  * Benchmark clustering effectiveness against baseline performance
  */
 export async function benchmarkClustering(
-  testFunction: () => Promise<any>,
-  iterations: number = 100,
-  _dataSize: number = 1000
+  testFunction: () => Promise<unknown>,
+  iterations: number = 100
 ): Promise<ClusteringBenchmark> {
   const pool = getPool();
   
@@ -54,7 +53,7 @@ export async function benchmarkClustering(
     enableLoadBalancing: false,
   });
   
-  const baseline = await runBenchmark("Baseline", testFunction, iterations, 1000);
+  const baseline = await runBenchmark("Baseline", testFunction, iterations);
   
   // Enable clustering for comparison
   pool.configureClustering({
@@ -64,7 +63,7 @@ export async function benchmarkClustering(
     clusteringStrategy: "hybrid",
   });
   
-  const clustered = await runBenchmark("Clustered", testFunction, iterations, 1000);
+  const clustered = await runBenchmark("Clustered", testFunction, iterations);
   
   return {
     baseline,
@@ -86,7 +85,7 @@ export async function runBenchmarkSuite(suite: BenchmarkSuite): Promise<Clusteri
   
   for (const test of suite.tests) {
     console.log(`Running benchmark: ${test.name}`);
-    const result = await benchmarkClustering(test.fn, test.iterations, test.dataSize);
+    const result = await benchmarkClustering(test.fn, test.iterations);
     results.push(result);
   }
   
@@ -98,7 +97,7 @@ export async function runBenchmarkSuite(suite: BenchmarkSuite): Promise<Clusteri
  */
 export function startPerformanceMonitoring(
   intervalMs: number = 1000,
-  callback?: (stats: PoolStats & { clustering?: any }) => void
+  callback?: (stats: PoolStats & { clustering?: ClusterStats }) => void
 ): () => void {
   const interval = setInterval(() => {
     const stats = getPool().getStats();
@@ -164,7 +163,7 @@ export function createSyntheticWorkload(
   type: "cpu" | "memory" | "io" | "mixed",
   complexity: "low" | "medium" | "high",
   dataSize: number
-): () => Promise<any> {
+): () => Promise<unknown> {
   switch (type) {
     case "cpu":
       return createCPUWorkload(complexity, dataSize);
@@ -181,9 +180,8 @@ export function createSyntheticWorkload(
 
 async function runBenchmark(
   name: string,
-  testFunction: () => Promise<any>,
-  iterations: number,
-  _dataSize: number
+  testFunction: () => Promise<unknown>,
+  iterations: number
 ): Promise<BenchmarkResult> {
   const startTime = performance.now();
   
@@ -250,7 +248,7 @@ function createIOWorkload(complexity: string, dataSize: number): () => Promise<s
   };
 }
 
-function createMixedWorkload(complexity: string, dataSize: number): () => Promise<any> {
+function createMixedWorkload(complexity: string, dataSize: number): () => Promise<{ cpu: number; memory: number[]; io: string }> {
   const cpuWorkload = createCPUWorkload(complexity, Math.floor(dataSize / 3));
   const memoryWorkload = createMemoryWorkload(complexity, Math.floor(dataSize / 3));
   const ioWorkload = createIOWorkload(complexity, Math.floor(dataSize / 3));

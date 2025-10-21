@@ -31,7 +31,10 @@ export class WorkerPool {
   private destroyed = false;
   private clusterManager: TaskClusterManager;
   private workerSpecializations: Map<number, string> = new Map();
-  private performanceMetrics: Map<number, { cpu: number; memory: number; taskCount: number }> = new Map();
+  private performanceMetrics: Map<
+    number,
+    { cpu: number; memory: number; taskCount: number }
+  > = new Map();
 
   constructor(opts: ThreadedOptions = {}) {
     const cores = (isBrowser && (navigator as any)?.hardwareConcurrency) || 4;
@@ -46,27 +49,28 @@ export class WorkerPool {
       preferTransferables: opts.preferTransferables ?? true,
       name: opts.name ?? "cthread",
       timeoutMs: opts.timeoutMs ?? 10000,
-      // Enhanced clustering options for 50%+ performance gains
+      // Enhanced clustering options
       enableClustering: opts.enableClustering ?? true,
       clusteringStrategy: opts.clusteringStrategy ?? "hybrid",
       enableWorkerSpecialization: opts.enableWorkerSpecialization ?? true,
       enableLoadBalancing: opts.enableLoadBalancing ?? true,
-      maxClusterSize: opts.maxClusterSize ?? Math.max(8, Math.floor(defaultPool * 3)), // Increased cluster size
-      clusterTimeoutMs: opts.clusterTimeoutMs ?? 1000, // Faster cluster timeout
+      maxClusterSize:
+        opts.maxClusterSize ?? Math.max(8, Math.floor(defaultPool * 3)),
+      clusterTimeoutMs: opts.clusterTimeoutMs ?? 1000,
       enablePerformanceTracking: opts.enablePerformanceTracking ?? true,
     };
 
-    // Initialize clustering manager with enhanced options for 50%+ performance
+    // Initialize clustering manager with enhanced options
     const clusteringOptions: Partial<ClusteringOptions> = {
       enableTaskClustering: true,
       enableWorkerSpecialization: true,
       enableLoadBalancing: true,
       clusteringStrategy: "hybrid",
-      maxClusterSize: Math.max(8, Math.floor(this.opts.poolSize * 3)), // Larger clusters
-      clusterTimeoutMs: 1000, // Faster processing
+      maxClusterSize: Math.max(8, Math.floor(this.opts.poolSize * 3)),
+      clusterTimeoutMs: 1000,
       enablePerformanceTracking: true,
     };
-    
+
     this.clusterManager = new TaskClusterManager(clusteringOptions);
 
     if (hasWorker) {
@@ -77,19 +81,19 @@ export class WorkerPool {
         w.onmessage = (e: MessageEvent) => this.handleWorkerMessage(slot, e);
         w.onerror = () => {
           // keep pool running on worker error
-          // eslint-disable-next-line no-empty
+          // Intentionally empty - errors are handled elsewhere
         };
         this.workers.push(slot);
-        
+
         // Initialize worker specialization and metrics
         this.workerSpecializations.set(i, "any");
         this.performanceMetrics.set(i, { cpu: 0, memory: 0, taskCount: 0 });
-        
+
         // Sync with cluster manager
         this.clusterManager.setWorkerSpecialization(i, "any");
       }
       if (this.opts.warmup) this.warmup();
-      
+
       // Start performance monitoring
       this.startPerformanceMonitoring();
     }
@@ -106,7 +110,9 @@ export class WorkerPool {
           args: [],
           preferTransferables: false,
         });
-      } catch {}
+      } catch {
+        // Ignore warmup errors
+      }
     }
   }
 
@@ -201,7 +207,7 @@ export class WorkerPool {
       this.failed++;
       rec.reject(error);
     }
-    
+
     // Optimize clusters after task completion
     this.clusterManager.optimizeClusters();
     this.pump();
@@ -210,19 +216,22 @@ export class WorkerPool {
   private pickFreeWorker(): WorkerSlot | null {
     // Use clustering-based worker selection if enabled
     if (this.clusterManager) {
-      const availableWorkers = this.workers.filter(w => !w.busy);
-      return this.clusterManager.selectOptimalWorker(null as any, availableWorkers);
+      const availableWorkers = this.workers.filter((w) => !w.busy);
+      return this.clusterManager.selectOptimalWorker(
+        null as any,
+        availableWorkers
+      );
     }
-    
+
     // Fallback to simple round-robin
     for (const slot of this.workers) if (!slot.busy) return slot;
     return null;
   }
 
   private pickFreeWorkerForTask(task: Task): WorkerSlot | null {
-    const availableWorkers = this.workers.filter(w => !w.busy);
+    const availableWorkers = this.workers.filter((w) => !w.busy);
     if (availableWorkers.length === 0) return null;
-    
+
     // Use clustering-based worker selection
     const cluster = this.clusterManager.clusterTask(task);
     return this.clusterManager.selectOptimalWorker(cluster, availableWorkers);
@@ -285,20 +294,20 @@ export class WorkerPool {
         const transfers = preferTransferables
           ? collectTransferablesDeep(args)
           : [];
-        
+
         // Enhanced message with clustering metadata
-        const message = { 
-          id, 
-          code, 
-          args, 
+        const message = {
+          id,
+          code,
+          args,
           preferTransferables,
           clustering: {
             workerId: slot.id,
             specialization: this.workerSpecializations?.get(slot.id) || "any",
-            enableMetrics: true
-          }
+            enableMetrics: true,
+          },
         };
-        
+
         slot.w.postMessage(message, transfers);
       } catch (err) {
         slot.busy = false;
@@ -322,13 +331,13 @@ export class WorkerPool {
   private startPerformanceMonitoring(): void {
     setInterval(() => {
       if (this.destroyed) return;
-      
+
       // Update worker specializations based on performance patterns
       this.updateWorkerSpecializations();
-      
+
       // Optimize clusters periodically
       this.clusterManager.optimizeClusters();
-      
+
       // Clean up old performance data
       this.cleanupPerformanceData();
     }, 5000); // Monitor every 5 seconds
@@ -337,14 +346,22 @@ export class WorkerPool {
   /**
    * Update worker metrics for clustering
    */
-  private updateWorkerMetrics(workerId: number, taskDuration: number, metrics: { cpu: number; memory: number }): void {
-    const current = this.performanceMetrics.get(workerId) || { cpu: 0, memory: 0, taskCount: 0 };
+  private updateWorkerMetrics(
+    workerId: number,
+    taskDuration: number,
+    metrics: { cpu: number; memory: number }
+  ): void {
+    const current = this.performanceMetrics.get(workerId) || {
+      cpu: 0,
+      memory: 0,
+      taskCount: 0,
+    };
     current.taskCount++;
     current.cpu = (current.cpu + metrics.cpu) / 2; // Moving average
     current.memory = (current.memory + metrics.memory) / 2; // Moving average
-    
+
     this.performanceMetrics.set(workerId, current);
-    
+
     // Update cluster manager with metrics
     this.clusterManager.updateWorkerMetrics(workerId, taskDuration, metrics);
   }
@@ -354,9 +371,12 @@ export class WorkerPool {
    */
   private updateWorkerSpecializations(): void {
     const metricsEntries = Array.from(this.performanceMetrics.entries());
-    
+
     for (const [workerId, workerMetrics] of metricsEntries) {
-      const specialization = this.determineWorkerSpecialization(workerId, workerMetrics);
+      const specialization = this.determineWorkerSpecialization(
+        workerId,
+        workerMetrics
+      );
       this.workerSpecializations.set(workerId, specialization);
       this.clusterManager.setWorkerSpecialization(workerId, specialization);
     }
@@ -365,16 +385,19 @@ export class WorkerPool {
   /**
    * Determine optimal specialization for a worker based on its performance patterns
    */
-  private determineWorkerSpecialization(workerId: number, metrics: { cpu: number; memory: number; taskCount: number }): string {
+  private determineWorkerSpecialization(
+    workerId: number,
+    metrics: { cpu: number; memory: number; taskCount: number }
+  ): string {
     if (metrics.taskCount < 5) return "any"; // Not enough data
-    
+
     const cpuRatio = metrics.cpu / 100;
     const memoryRatio = metrics.memory / 100;
-    
+
     if (cpuRatio > 0.7 && memoryRatio < 0.5) return "cpu-optimized";
     if (memoryRatio > 0.7 && cpuRatio < 0.5) return "memory-optimized";
     if (cpuRatio > 0.6 && memoryRatio > 0.6) return "io-optimized";
-    
+
     return "any";
   }
 
@@ -384,11 +407,15 @@ export class WorkerPool {
   private cleanupPerformanceData(): void {
     const now = performance.now();
     const maxAge = 300000; // 5 minutes
-    
+
     // Reset metrics for workers that haven't been active
     for (const [workerId, metrics] of this.performanceMetrics.entries()) {
       if (now - metrics.taskCount > maxAge) {
-        this.performanceMetrics.set(workerId, { cpu: 0, memory: 0, taskCount: 0 });
+        this.performanceMetrics.set(workerId, {
+          cpu: 0,
+          memory: 0,
+          taskCount: 0,
+        });
       }
     }
   }
@@ -439,7 +466,7 @@ export class WorkerPool {
         priority: options.priority ?? 0,
         timeoutAt:
           options.timeoutMs ?? this.opts.timeoutMs
-            ? performance.now() + (options.timeoutMs ?? this.opts.timeoutMs)!
+            ? performance.now() + (options.timeoutMs ?? this.opts.timeoutMs)
             : undefined,
         signal: options.signal ?? null,
         preferTransferables,
