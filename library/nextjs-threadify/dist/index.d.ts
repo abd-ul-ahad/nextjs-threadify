@@ -62,8 +62,72 @@ declare function Threadium({ children, poolSize, minWorkTimeMs, warmup, strategy
  */
 declare function useThreaded<T extends (...args: any[]) => any>(fn: T, deps?: any[]): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
 
+interface TaskCluster {
+    id: string;
+    tasks: any[];
+    priority: number;
+    estimatedDuration: number;
+    resourceType: ResourceType;
+    affinity: WorkerAffinity;
+}
+type ResourceType = "cpu-intensive" | "memory-intensive" | "io-bound" | "mixed";
+type WorkerAffinity = "any" | "cpu-optimized" | "memory-optimized" | "io-optimized";
+interface WorkerMetrics {
+    workerId: number;
+    cpuUtilization: number;
+    memoryUsage: number;
+    taskCount: number;
+    avgTaskDuration: number;
+    specialization: WorkerAffinity;
+    lastActivity: number;
+}
+interface ClusteringOptions {
+    enableTaskClustering: boolean;
+    enableWorkerSpecialization: boolean;
+    enableLoadBalancing: boolean;
+    clusteringStrategy: "complexity" | "resource" | "priority" | "hybrid";
+    maxClusterSize: number;
+    clusterTimeoutMs: number;
+    enablePerformanceTracking: boolean;
+    priority?: number;
+}
+interface ClusterStats {
+    totalClusters: number;
+    activeClusters: number;
+    avgClusterSize: number;
+    clusteringEfficiency: number;
+    loadBalanceScore: number;
+    resourceUtilization: {
+        cpu: number;
+        memory: number;
+    };
+}
+
 type Strategy = "auto" | "always" | "inline";
 type SaturationPolicy = "reject" | "inline" | "enqueue";
+
+interface BenchmarkResult$1 {
+    name: string;
+    duration: number;
+    throughput: number;
+    efficiency: number;
+    clusteringEffectiveness: number;
+    resourceUtilization: {
+        cpu: number;
+        memory: number;
+    };
+    loadBalanceScore: number;
+}
+interface ClusteringBenchmark$1 {
+    baseline: BenchmarkResult$1;
+    clustered: BenchmarkResult$1;
+    improvement: {
+        duration: number;
+        throughput: number;
+        efficiency: number;
+        clusteringEffectiveness: number;
+    };
+}
 /** Pool configuration options. Reasonable defaults are applied when fields are omitted. */
 type ThreadedOptions = {
     poolSize?: number;
@@ -75,6 +139,13 @@ type ThreadedOptions = {
     preferTransferables?: boolean;
     name?: string;
     timeoutMs?: number;
+    enableClustering?: boolean;
+    clusteringStrategy?: "complexity" | "resource" | "priority" | "hybrid";
+    enableWorkerSpecialization?: boolean;
+    enableLoadBalancing?: boolean;
+    maxClusterSize?: number;
+    clusterTimeoutMs?: number;
+    enablePerformanceTracking?: boolean;
 };
 /** Per-call run options (overrides ThreadedOptions for a single task). */
 type RunOptions = {
@@ -84,6 +155,12 @@ type RunOptions = {
     preferTransferables?: boolean;
     strategy?: Strategy;
     minWorkTimeMs?: number;
+    clustering?: {
+        forceCluster?: boolean;
+        clusterId?: string;
+        workerAffinity?: "any" | "cpu-optimized" | "memory-optimized" | "io-optimized";
+        priority?: number;
+    };
 };
 /**
  * Runtime statistics returned by `getThreadedStats()`.
@@ -99,6 +176,17 @@ type PoolStats = {
     completed: number;
     failed: number;
     avgLatencyMs: number;
+    clustering?: {
+        totalClusters: number;
+        activeClusters: number;
+        avgClusterSize: number;
+        clusteringEfficiency: number;
+        loadBalanceScore: number;
+        resourceUtilization: {
+            cpu: number;
+            memory: number;
+        };
+    };
 };
 
 /**
@@ -114,6 +202,14 @@ declare function Threaded(defaults?: RunOptions): any;
 declare function configureThreaded(opts?: ThreadedOptions): void;
 /** Get a diagnostic snapshot of the current global pool. */
 declare function getThreadedStats(): PoolStats;
+/** Get detailed clustering statistics. */
+declare function getClusterStats(): ClusterStats;
+/** Configure clustering options dynamically. */
+declare function configureClustering(options: Partial<ClusteringOptions>): void;
+/** Get worker specialization information. */
+declare function getWorkerSpecializations(): Map<number, string>;
+/** Manually assign worker specialization. */
+declare function setWorkerSpecialization(workerId: number, specialization: string): void;
 /** Destroy the global pool and release resources. */
 declare function destroyThreaded(): void;
 
@@ -121,4 +217,133 @@ declare function parallelMap<T, R>(items: T[], mapper: (item: T, idx: number, al
     chunkSize?: number;
 }): Promise<R[]>;
 
-export { type PoolStats, type RunOptions, Threaded, type ThreadedOptions, Threadium, configureThreaded, destroyThreaded, getThreadedStats, parallelMap, threaded, useThreaded };
+/**
+ * Enhanced threaded function with clustering support
+ */
+declare function clusteredThreaded<T extends (...args: any[]) => any>(fn: T, defaults?: RunOptions): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
+/**
+ * CPU-intensive task wrapper with specialized clustering
+ */
+declare function cpuIntensive<T extends (...args: any[]) => any>(fn: T, options?: RunOptions): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
+/**
+ * Memory-intensive task wrapper with specialized clustering
+ */
+declare function memoryIntensive<T extends (...args: any[]) => any>(fn: T, options?: RunOptions): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
+/**
+ * I/O-bound task wrapper with specialized clustering
+ */
+declare function ioBound<T extends (...args: any[]) => any>(fn: T, options?: RunOptions): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
+/**
+ * High-priority task wrapper with priority clustering
+ */
+declare function highPriority<T extends (...args: any[]) => any>(fn: T, options?: RunOptions): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
+/**
+ * Batch processing with intelligent clustering
+ */
+declare function clusteredBatch<T, R>(items: T[], processor: (item: T, index: number) => R | Promise<R>, options?: RunOptions & {
+    batchSize?: number;
+    clusterStrategy?: "similarity" | "size" | "priority";
+}): Promise<R[]>;
+/**
+ * Smart parallel processing with clustering optimization
+ */
+declare function smartParallelMap<T, R>(items: T[], mapper: (item: T, index: number, all: T[]) => R | Promise<R>, options?: RunOptions & {
+    clusteringStrategy?: "complexity" | "resource" | "priority" | "hybrid";
+    adaptiveBatching?: boolean;
+}): Promise<R[]>;
+/**
+ * Performance-optimized clustering for similar tasks
+ */
+declare function performanceCluster<T extends (...args: any[]) => any>(tasks: Array<{
+    fn: T;
+    args: Parameters<T>;
+    priority?: number;
+}>, options?: RunOptions): Promise<Array<Awaited<ReturnType<T>>>>;
+
+interface BenchmarkResult {
+    name: string;
+    duration: number;
+    throughput: number;
+    efficiency: number;
+    clusteringEffectiveness: number;
+    resourceUtilization: {
+        cpu: number;
+        memory: number;
+    };
+    loadBalanceScore: number;
+}
+interface ClusteringBenchmark {
+    baseline: BenchmarkResult;
+    clustered: BenchmarkResult;
+    improvement: {
+        duration: number;
+        throughput: number;
+        efficiency: number;
+        clusteringEffectiveness: number;
+    };
+}
+interface BenchmarkSuite {
+    name: string;
+    tests: Array<{
+        name: string;
+        fn: () => Promise<any>;
+        iterations: number;
+        dataSize: number;
+    }>;
+}
+/**
+ * Benchmark clustering effectiveness against baseline performance
+ */
+declare function benchmarkClustering(testFunction: () => Promise<any>, iterations?: number, _dataSize?: number): Promise<ClusteringBenchmark>;
+/**
+ * Run comprehensive benchmark suite
+ */
+declare function runBenchmarkSuite(suite: BenchmarkSuite): Promise<ClusteringBenchmark[]>;
+/**
+ * Monitor real-time clustering performance
+ */
+declare function startPerformanceMonitoring(intervalMs?: number, callback?: (stats: PoolStats & {
+    clustering?: any;
+}) => void): () => void;
+/**
+ * Generate performance report
+ */
+declare function generatePerformanceReport(benchmarks: ClusteringBenchmark[]): string;
+/**
+ * Create synthetic workload for testing
+ */
+declare function createSyntheticWorkload(type: "cpu" | "memory" | "io" | "mixed", complexity: "low" | "medium" | "high", dataSize: number): () => Promise<any>;
+/**
+ * Predefined benchmark suites
+ */
+declare const BenchmarkSuites: {
+    cpuIntensive: {
+        name: string;
+        tests: {
+            name: string;
+            fn: () => Promise<any>;
+            iterations: number;
+            dataSize: number;
+        }[];
+    };
+    memoryIntensive: {
+        name: string;
+        tests: {
+            name: string;
+            fn: () => Promise<any>;
+            iterations: number;
+            dataSize: number;
+        }[];
+    };
+    mixed: {
+        name: string;
+        tests: {
+            name: string;
+            fn: () => Promise<any>;
+            iterations: number;
+            dataSize: number;
+        }[];
+    };
+};
+
+export { type BenchmarkResult$1 as BenchmarkResult, BenchmarkSuites, type ClusterStats, type ClusteringBenchmark$1 as ClusteringBenchmark, type ClusteringOptions, type PoolStats, type ResourceType, type RunOptions, type TaskCluster, Threaded, type ThreadedOptions, Threadium, type WorkerAffinity, type WorkerMetrics, benchmarkClustering, clusteredBatch, clusteredThreaded, configureClustering, configureThreaded, cpuIntensive, createSyntheticWorkload, destroyThreaded, generatePerformanceReport, getClusterStats, getThreadedStats, getWorkerSpecializations, highPriority, ioBound, memoryIntensive, parallelMap, performanceCluster, runBenchmarkSuite, setWorkerSpecialization, smartParallelMap, startPerformanceMonitoring, threaded, useThreaded };
