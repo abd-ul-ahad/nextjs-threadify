@@ -33,7 +33,7 @@ export default function UserFetcher() {
       setLoading(true);
       setError(null);
       setLastFetchTime(Date.now());
-      setFetchCount(prev => prev + 1);
+      setFetchCount((prev) => prev + 1);
       const result = await fetchUsers();
       setUsers(result);
     } catch (err) {
@@ -67,7 +67,8 @@ export default function UserFetcher() {
           >
             <span className="text-2xl mr-3">🔄</span>
             <span className="text-lg font-semibold text-gray-700">
-              Fetch Count: <span className="text-blue-600 font-bold">{fetchCount}</span>
+              Fetch Count:{" "}
+              <span className="text-blue-600 font-bold">{fetchCount}</span>
             </span>
           </motion.div>
         </motion.div>

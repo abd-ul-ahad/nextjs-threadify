@@ -1,6 +1,6 @@
 {
   "name": "nextjs-threadify",
-  "version": "3.2.0",
+  "version": "3.2.2",
   "description": "Threading/multitasking utilities for Next.js",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
