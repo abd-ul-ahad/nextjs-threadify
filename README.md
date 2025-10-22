@@ -27,9 +27,11 @@ yarn add nextjs-threadify
 ### Basic Usage
 
 ```tsx
-import { useThreaded, Threadium } from 'nextjs-threadify';
+"use client";
 
-function MyComponent() {
+import { useThreaded, Threadium } from "../library/nextjs-threadify";
+
+export default function MyComponent() {
   // Create a threaded function
   const heavyCalculation = useThreaded((numbers: number[]) => {
     // This runs in a worker thread
@@ -38,14 +40,12 @@ function MyComponent() {
 
   const handleClick = async () => {
     const result = await heavyCalculation([1, 4, 9, 16, 25]);
-    console.log('Result:', result); // 15
+    console.log("Result:", result); // 15
   };
 
   return (
     <Threadium>
-      <button onClick={handleClick}>
-        Run Heavy Calculation
-      </button>
+      <button onClick={handleClick}>Run Heavy Calculation</button>
     </Threadium>
   );
 }
@@ -58,7 +58,7 @@ function MyComponent() {
 The `<Threadium>` component sets up the worker environment for your app:
 
 ```tsx
-import { Threadium } from 'nextjs-threadify';
+import { Threadium } from "nextjs-threadify";
 
 function App() {
   return (
@@ -70,6 +70,7 @@ function App() {
 ```
 
 **Props:**
+
 - `poolSize`: Number of worker threads (default: CPU cores - 1)
 - `minWorkTimeMs`: Minimum work time to use workers (default: 6ms)
 - `warmup`: Enable worker warmup (default: true)
@@ -79,15 +80,15 @@ function App() {
 Convert any function to run in a worker thread:
 
 ```tsx
-import { useThreaded } from 'nextjs-threadify';
+import { useThreaded } from "nextjs-threadify";
 
 function DataProcessor() {
   const processData = useThreaded((data: any[]) => {
     // Heavy data processing
-    return data.map(item => ({
+    return data.map((item) => ({
       ...item,
       processed: true,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }));
   });
 
@@ -105,7 +106,7 @@ function DataProcessor() {
 For non-React usage, use the `threaded()` function:
 
 ```tsx
-import { threaded } from 'nextjs-threadify';
+import { threaded } from "nextjs-threadify";
 
 const fibonacci = threaded((n: number): number => {
   if (n <= 1) return n;
@@ -124,21 +125,21 @@ console.log(result); // 55
 The library automatically groups similar tasks for better performance:
 
 ```tsx
-import { cpuIntensive, memoryIntensive, ioBound } from 'nextjs-threadify';
+import { cpuIntensive, memoryIntensive, ioBound } from "nextjs-threadify";
 
 // CPU-intensive tasks (math, algorithms)
 const mathTask = cpuIntensive((numbers: number[]) => {
-  return numbers.map(n => Math.sqrt(n * n + 1));
+  return numbers.map((n) => Math.sqrt(n * n + 1));
 });
 
 // Memory-intensive tasks (large data processing)
 const dataTask = memoryIntensive((data: any[]) => {
-  return data.sort().filter(item => item.active);
+  return data.sort().filter((item) => item.active);
 });
 
 // I/O-bound tasks (string processing, serialization)
 const textTask = ioBound((text: string) => {
-  return text.split('\n').map(line => line.toUpperCase());
+  return text.split("\n").map((line) => line.toUpperCase());
 });
 ```
 
@@ -147,7 +148,7 @@ const textTask = ioBound((text: string) => {
 For urgent computations:
 
 ```tsx
-import { highPriority } from 'nextjs-threadify';
+import { highPriority } from "nextjs-threadify";
 
 const urgentTask = highPriority((data: any) => {
   // Critical calculation that needs to run first
@@ -160,7 +161,7 @@ const urgentTask = highPriority((data: any) => {
 Process multiple items efficiently:
 
 ```tsx
-import { clusteredBatch } from 'nextjs-threadify';
+import { clusteredBatch } from "nextjs-threadify";
 
 const processItems = async (items: any[]) => {
   const results = await clusteredBatch(
@@ -168,11 +169,11 @@ const processItems = async (items: any[]) => {
     (item) => ({
       ...item,
       processed: true,
-      result: heavyComputation(item)
+      result: heavyComputation(item),
     }),
     { batchSize: 100 }
   );
-  
+
   return results;
 };
 ```
@@ -182,17 +183,17 @@ const processItems = async (items: any[]) => {
 Monitor your application's performance:
 
 ```tsx
-import { getThreadedStats, startPerformanceMonitoring } from 'nextjs-threadify';
+import { getThreadedStats, startPerformanceMonitoring } from "nextjs-threadify";
 
 // Get current statistics
 const stats = getThreadedStats();
-console.log('Pool size:', stats.poolSize);
-console.log('Busy workers:', stats.busy);
-console.log('Completed tasks:', stats.completed);
+console.log("Pool size:", stats.poolSize);
+console.log("Busy workers:", stats.busy);
+console.log("Completed tasks:", stats.completed);
 
 // Start real-time monitoring
 const stopMonitoring = startPerformanceMonitoring(1000, (stats) => {
-  console.log('Performance:', stats);
+  console.log("Performance:", stats);
 });
 
 // Stop monitoring when done
@@ -204,17 +205,17 @@ stopMonitoring();
 Configure the worker pool globally:
 
 ```tsx
-import { configureThreaded } from 'nextjs-threadify';
+import { configureThreaded } from "nextjs-threadify";
 
 configureThreaded({
-  poolSize: 6,                    // Number of workers
-  enableClustering: true,         // Enable smart clustering
-  clusteringStrategy: 'hybrid',   // Clustering strategy
+  poolSize: 6, // Number of workers
+  enableClustering: true, // Enable smart clustering
+  clusteringStrategy: "hybrid", // Clustering strategy
   enableWorkerSpecialization: true, // Auto-specialize workers
-  enableLoadBalancing: true,      // Balance work across workers
-  maxClusterSize: 10,            // Max tasks per cluster
-  clusterTimeoutMs: 2000,         // Cluster timeout
-  enablePerformanceTracking: true // Track performance metrics
+  enableLoadBalancing: true, // Balance work across workers
+  maxClusterSize: 10, // Max tasks per cluster
+  clusterTimeoutMs: 2000, // Cluster timeout
+  enablePerformanceTracking: true, // Track performance metrics
 });
 ```
 
@@ -223,21 +224,25 @@ configureThreaded({
 ### ✅ Do's
 
 1. **Use for Heavy Computations**
+
    ```tsx
    // Good: Heavy math operations
    const mathTask = useThreaded((numbers: number[]) => {
-     return numbers.map(n => Math.sqrt(n * n + 1));
+     return numbers.map((n) => Math.sqrt(n * n + 1));
    });
    ```
 
 2. **Process Large Datasets**
+
    ```tsx
    // Good: Large data processing
    const processData = useThreaded((data: any[]) => {
-     return data.filter(item => item.active).map(item => ({
-       ...item,
-       processed: true
-     }));
+     return data
+       .filter((item) => item.active)
+       .map((item) => ({
+         ...item,
+         processed: true,
+       }));
    });
    ```
 
@@ -251,23 +256,25 @@ configureThreaded({
 ### ❌ Don'ts
 
 1. **Don't Use for Simple Operations**
+
    ```tsx
    // Bad: Too simple for threading
    const simpleAdd = useThreaded((a: number, b: number) => a + b);
    ```
 
 2. **Don't Access DOM or Browser APIs**
+
    ```tsx
    // Bad: Can't access DOM in workers
    const badTask = useThreaded(() => {
-     document.getElementById('myElement'); // ❌ Won't work
+     document.getElementById("myElement"); // ❌ Won't work
    });
    ```
 
 3. **Don't Use External Variables**
    ```tsx
    // Bad: External variables not available
-   const externalVar = 'hello';
+   const externalVar = "hello";
    const badTask = useThreaded(() => {
      return externalVar; // ❌ Won't work
    });
@@ -291,10 +298,10 @@ A: Ensure you're wrapping your app with `<Threadium>` and the task takes longer 
 Enable debug logging:
 
 ```tsx
-import { configureThreaded } from 'nextjs-threadify';
+import { configureThreaded } from "nextjs-threadify";
 
 configureThreaded({
-  name: 'debug-pool',
+  name: "debug-pool",
   // Add debug options here
 });
 ```
@@ -302,16 +309,19 @@ configureThreaded({
 ## 📈 Performance Tips
 
 1. **Choose the Right Pool Size**
+
    - Default: CPU cores - 1
    - For CPU-intensive: Use more workers
    - For I/O-bound: Use fewer workers
 
 2. **Use Appropriate Task Types**
+
    - `cpuIntensive`: Math, algorithms, computations
    - `memoryIntensive`: Large data processing
    - `ioBound`: String processing, serialization
 
 3. **Batch Similar Tasks**
+
    - Group similar operations together
    - Use `clusteredBatch` for multiple items
 
@@ -324,16 +334,16 @@ configureThreaded({
 ### Image Processing
 
 ```tsx
-import { memoryIntensive } from 'nextjs-threadify';
+import { memoryIntensive } from "nextjs-threadify";
 
 const processImage = memoryIntensive((imageData: Uint8Array) => {
   const processed = new Uint8Array(imageData.length);
   for (let i = 0; i < imageData.length; i += 4) {
     // Apply filters
-    processed[i] = Math.min(255, imageData[i] * 1.2);     // R
+    processed[i] = Math.min(255, imageData[i] * 1.2); // R
     processed[i + 1] = Math.min(255, imageData[i + 1] * 1.1); // G
     processed[i + 2] = Math.min(255, imageData[i + 2] * 0.9); // B
-    processed[i + 3] = imageData[i + 3];                   // A
+    processed[i + 3] = imageData[i + 3]; // A
   }
   return processed;
 });
@@ -342,14 +352,15 @@ const processImage = memoryIntensive((imageData: Uint8Array) => {
 ### Data Analysis
 
 ```tsx
-import { cpuIntensive } from 'nextjs-threadify';
+import { cpuIntensive } from "nextjs-threadify";
 
 const analyzeData = cpuIntensive((data: number[]) => {
   const sorted = [...data].sort((a, b) => a - b);
   const mean = data.reduce((sum, n) => sum + n, 0) / data.length;
   const median = sorted[Math.floor(sorted.length / 2)];
-  const variance = data.reduce((sum, n) => sum + Math.pow(n - mean, 2), 0) / data.length;
-  
+  const variance =
+    data.reduce((sum, n) => sum + Math.pow(n - mean, 2), 0) / data.length;
+
   return { mean, median, variance, stdDev: Math.sqrt(variance) };
 });
 ```
@@ -357,14 +368,15 @@ const analyzeData = cpuIntensive((data: number[]) => {
 ### Text Processing
 
 ```tsx
-import { ioBound } from 'nextjs-threadify';
+import { ioBound } from "nextjs-threadify";
 
 const processText = ioBound((text: string) => {
   const words = text.toLowerCase().split(/\s+/);
   const wordCount = words.length;
   const uniqueWords = new Set(words).size;
-  const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / wordCount;
-  
+  const avgWordLength =
+    words.reduce((sum, word) => sum + word.length, 0) / wordCount;
+
   return { wordCount, uniqueWords, avgWordLength };
 });
 ```

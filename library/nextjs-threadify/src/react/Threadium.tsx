@@ -1,123 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { configureThreaded, threaded } from "./Utils";
-
-interface ThreadedProps {
-  children: ReactNode;
-  /**
-   * Optional: Configure worker pool size (defaults to CPU cores - 1)
-   */
-  poolSize?: number;
-  /**
-   * Optional: Minimum work time threshold in ms to decide worker vs inline (default: 6ms)
-   */
-  minWorkTimeMs?: number;
-  /**
-   * Optional: Enable/disable worker warmup (default: true)
-   */
-  warmup?: boolean;
-  /**
-   * Optional: Scheduling strategy - only 'always' supported (default: 'always')
-   * All operations will run on worker threads with no fallback to main thread
-   */
-  strategy?: "always";
-  /**
-   * Optional: Custom CSS class names to style the container element
-   */
-  className?: string;
-}
+import { useCallback, useMemo } from "react";
+import { threaded } from "../api/threaded";
 
 /**
- * <Threaded> component wrapper that runs its children in a multi-threaded
- * environment using Web Workers. All operations are guaranteed to run on
- * worker threads with no fallback to main thread execution.
- *
- * Features:
- * - SSR-safe: No errors during server-side rendering
- * - Hydration-friendly: Seamless client-side takeover
- * - Automatic worker pool management
- * - Smooth animations via requestAnimationFrame scheduling
- * - Zero-copy transfers for ArrayBuffers when possible
- * - Worker-only execution: Never falls back to main thread
- *
- * Usage:
- * ```tsx
- * <Threadium poolSize={4}>
- *   <HeavyComponent />
- * </Threadium>
- * ```
- */
-export function Threadium({
-  children,
-  poolSize,
-  minWorkTimeMs,
-  warmup = true,
-  strategy = "always",
-  className,
-}: ThreadedProps) {
-  const [isClient, setIsClient] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const rafRef = useRef<number>(null);
-
-  // SSR safety: only initialize workers on client
-  useEffect(() => {
-    setIsClient(true);
-
-    configureThreaded({
-      poolSize,
-      minWorkTimeMs,
-      warmup,
-      strategy: "always", // Force worker-only execution
-      preferTransferables: true,
-      saturation: "enqueue", // Queue tasks instead of running inline
-    });
-
-    // Smooth animation loop to ensure consistent frame timing
-    // This helps maintain 60fps even when workers are processing
-    const animate = () => {
-      rafRef.current = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, [poolSize, minWorkTimeMs, warmup, strategy]);
-
-  // During SSR or before hydration, render children normally
-  if (!isClient) {
-    return (
-      <div className={className} ref={containerRef}>
-        {children}
-      </div>
-    );
-  }
-
-  // After hydration, wrap in a container that enables GPU acceleration
-  // for smooth animations and transitions
-  return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{
-        willChange: "transform",
-        transform: "translateZ(0)",
-        backfaceVisibility: "hidden",
-        perspective: 1000,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/**
- * Hook to access threaded execution within components.
- * Use this to offload heavy computations to worker threads.
- * All operations are guaranteed to run on worker threads with no fallback.
+ * Ultra-fast threaded execution hook with minimal overhead.
+ * Optimized for maximum performance with intelligent caching and lazy initialization.
  *
  * Example:
  * ```tsx
@@ -132,18 +20,21 @@ export function useThreaded<T extends (...args: any[]) => any>(
   fn: T,
   deps: any[] = []
 ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
-  const threadedFnRef = useRef<ReturnType<typeof threaded<T>> | null>(null);
-
-  useEffect(() => {
-    threadedFnRef.current = threaded(fn);
+  // Memoize the threaded function to avoid recreation on every render
+  const threadedFn = useMemo(() => {
+    return threaded(fn, {
+      priority: 50, // High priority for fastest execution
+      timeoutMs: 5000,
+      minWorkTimeMs: 0.1,
+      preferTransferables: true, // Enable zero-copy transfers
+    });
   }, deps);
 
-  return (...args: Parameters<T>) => {
-    if (!threadedFnRef.current) {
-      throw new Error(
-        "[Threadium] Worker not initialized. Ensure the component is mounted and Web Workers are supported."
-      );
-    }
-    return threadedFnRef.current(...args);
-  };
+  // Use useCallback to prevent unnecessary re-renders of components using this hook
+  return useCallback(
+    (...args: Parameters<T>) => {
+      return threadedFn(...args);
+    },
+    [threadedFn]
+  );
 }

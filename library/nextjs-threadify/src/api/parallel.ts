@@ -32,8 +32,9 @@ export async function parallelMap<T, R>(
       };
       return pool
         .run(chunkRunner.toString(), [slice], options)
-        .then((results: R[]) => {
-          for (let i = 0; i < results.length; i++) out[start + i] = results[i];
+        .then((results: unknown) => {
+          const typedResults = results as R[];
+          for (let i = 0; i < typedResults.length; i++) out[start + i] = typedResults[i];
         });
     })
   );
